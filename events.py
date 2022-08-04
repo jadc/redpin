@@ -8,12 +8,10 @@ class Events(commands.Cog):
         self.bot = bot
         self.config = config
         self.lock = asyncio.Lock()
-        print('Events init')
+        print('Events initialized')
 
     @commands.Cog.listener()
     async def on_raw_reaction_add(self, payload):
-        #print('---\n', payload)
-
         if payload.guild_id is None:
             print('Reaction in DMs, ignored.')
             return
@@ -29,7 +27,7 @@ class Events(commands.Cog):
         cfg = self.config.get(payload.guild_id)
 
         if cfg['channel'] is None:
-            print('Reaction from with no pin channel, ignored.')
+            print('Reaction from guild with no pin channel, ignored.')
             return
 
         if payload.channel_id == cfg['channel']:
@@ -57,10 +55,12 @@ class Events(commands.Cog):
 
             await msg.add_reaction(reaction)  # Marked as pinned
             print('Marked a message as pinned.')
+
             pinned_msg = await self.pin_message(msg, self.bot.get_channel(cfg['channel'])) 
-            print('Pinned a message.')
             await self.clone_reactions(msg, pinned_msg)
-            print('Cloned all reactions')
+
+            if cfg['dm']:
+                await self.notify_of_pin(msg, pinned_msg)
 
     # Filtering process
     def is_emoji_allowed(self, reaction):
@@ -81,6 +81,7 @@ class Events(commands.Cog):
                 return hook
 
         # if no webhook, create one
+        print('Created a new webhook')
         return await pin_channel.create_webhook(name = 'redpin', reason = 'redpin functionality')
 
     async def pin_message(self, message, pin_channel):
@@ -103,6 +104,7 @@ class Events(commands.Cog):
         for sticker in message.stickers:
             content_w_files += f'\n{sticker.url}'
 
+        print(f'Pinned message {message.id} in guild {message.guild.id}')
         return await hook.send(
             wait = True,
             content = content_w_files,
@@ -121,4 +123,13 @@ class Events(commands.Cog):
             try:
                 await target.add_reaction(reaction)
             except discord.errors.HTTPException:
-                print('Attempted to react with an unknown emoji. Skipping...')
+                print('Failed to clone a reaction (unknown emoji or lacking permissions)')
+        print('Cloned all reactions')
+
+    async def notify_of_pin(self, message, pinned_msg):
+        timestamp = discord.utils.format_dt(message.created_at, style='R')
+        await message.author.send(
+                content = f'A message you created {timestamp} in **{message.guild.name}** was pinned!',
+                view = View().add_item( Button(label="Check it out", url=pinned_msg.jump_url) )
+                )
+        print('Sent a DM to the author of the newly pinned message')

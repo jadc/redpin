@@ -5,7 +5,7 @@ class Config():
         self.config = {}
         self.config_name = 'config.json'
         self.load()
-        print('Config init')
+        print('Config initialized')
 
     def save(self):
         with open(self.config_name, 'w') as f:
@@ -20,5 +20,5 @@ class Config():
             self.load()
 
     def get(self, guild_id):
-        default_guild = {'channel': None, 'count': 3, 'nsfw': False, 'selfpin': False, 'filter': []}
+        default_guild = {'channel': None, 'count': 3, 'nsfw': False, 'selfpin': False, 'dm': True, 'filter': []}
         return self.config.setdefault( str(guild_id), default_guild )

@@ -1,7 +1,7 @@
 import discord
 from discord.ext import commands
 
-from config import Config
+from utils import Config
 from commands import Commands
 from events import Events
 

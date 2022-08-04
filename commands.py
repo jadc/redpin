@@ -3,7 +3,7 @@ from discord import app_commands
 from discord.ext import commands
 from discord.ui import View, Button
 
-from config import Config
+from utils import Config
 
 @app_commands.default_permissions(administrator=True)
 class Commands(commands.GroupCog, name='redpin'):
@@ -11,7 +11,7 @@ class Commands(commands.GroupCog, name='redpin'):
         self.bot = bot
         self.config = config
         super().__init__()
-        print('Commands init')
+        print('Commands initialized')
 
     @app_commands.command(name = 'channel', description = 'Set which channel to send pins to.')
     async def channel(self, interaction: discord.Interaction, channel: discord.TextChannel):
@@ -71,6 +71,18 @@ class Commands(commands.GroupCog, name='redpin'):
             await interaction.response.send_message(f'Messages can now be pinned by their author.', ephemeral = True)
         else:
             await interaction.response.send_message(f'Messages can no longer be pinned by their author.', ephemeral = True)
+
+    @app_commands.command(name = 'dm', description = 'Toggle whether pinning a message notifies their author.')
+    async def dm(self, interaction: discord.Interaction):
+        # update config
+        self.config.get(interaction.guild_id)['dm'] = not self.config.get(interaction.guild_id)['dm']
+        self.config.save()
+
+        # response
+        if self.config.get(interaction.guild_id)['dm']:
+            await interaction.response.send_message(f'Pinning a message now notifies their author.', ephemeral = True)
+        else:
+            await interaction.response.send_message(f'Pinning a message no longer notifies their author.', ephemeral = True)
 
     # EMOJI COMMAND
     @app_commands.command(name = 'filter', description = 'Customize which emojis can pin messages. Run this command in a private channel!')
