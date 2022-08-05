@@ -56,12 +56,8 @@ class Events(commands.Cog):
             await msg.add_reaction(reaction)  # Marked as pinned
             print('Marked a message as pinned.')
 
-            pinned_msg = await self.pin_message(msg, self.bot.get_channel(cfg['channel'])) 
-            await self.clone_reactions(msg, pinned_msg)
-
-            if cfg['dm']:
-                await self.notify_of_pin(msg, pinned_msg)
-
+            await self.pin_message(msg, self.bot.get_channel(cfg['channel'])) 
+ 
     # Filtering process
     def is_emoji_allowed(self, reaction):
         allow = self.config.get(reaction.message.guild.id)['filter']
@@ -105,7 +101,7 @@ class Events(commands.Cog):
             content_w_files += f'\n{sticker.url}'
 
         print(f'Pinned message {message.id} in guild {message.guild.id}')
-        return await hook.send(
+        pinned_msg = await hook.send(
             wait = True,
             content = content_w_files,
             #embeds = message.embeds,  # odd behavior
@@ -117,6 +113,10 @@ class Events(commands.Cog):
             # jump to msg button
             view = View().add_item( Button(label="Jump", url=message.jump_url) )
         )
+
+        await self.clone_reactions(message, pinned_msg)
+        if self.config.get(message.guild.id)['dm']:
+            await self.notify_of_pin(message, pinned_msg)
 
     async def clone_reactions(self, source, target):
         for reaction in source.reactions:
