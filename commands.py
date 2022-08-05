@@ -21,9 +21,14 @@ class Commands(commands.GroupCog, name='redpin'):
     async def cog_unload(self) -> None:
         self.bot.tree.remove_command(self.ctx_menu.name, type=self.ctx_menu.type)
         
+    @app_commands.default_permissions(manage_messages=True)
     async def pin(self, interaction: discord.Interaction, message: discord.Message):
-        await Pin(self.bot, message).broadcast()
-        await interaction.response.send_message('Pinned a message.')
+        pin_attempt = await Pin(self.bot, message).broadcast()
+
+        if pin_attempt:  # True if message was successfully pinned
+            await interaction.response.send_message('Pinned a message.')
+        else:
+            await interaction.response.send_message("Failed to pin message. Did you forget to set a pin channel with `/redpin channel`?", ephemeral = True)
 
     # COMMANDS
     @app_commands.command(name = 'channel', description = 'Set which channel to send pins to.')

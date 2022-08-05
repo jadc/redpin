@@ -36,6 +36,10 @@ class Pin():
         print('Sent a DM to the author of the newly pinned message')
 
     async def broadcast(self):
+        if self.guild_config['channel'] is None:
+            print('Pin attempted in guild with no pin channel, ignored.')
+            return
+
         # Mark message as pinned
         await self.message.add_reaction(self.reaction)
         print('Marked a message as pinned.')
@@ -77,3 +81,4 @@ class Pin():
             await self.notify_of_pin(pinned_msg)
 
         print(f'Pinned message {self.message.id} in guild {self.message.guild.id}')
+        return True
