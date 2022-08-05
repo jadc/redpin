@@ -16,7 +16,7 @@ class Bot(commands.Bot):
         self.config = Config()
 
         # Set to True when developing
-        self.synced = True
+        self.synced = False
 
     async def setup_hook(self):
         await self.add_cog( Commands(self, self.config) )

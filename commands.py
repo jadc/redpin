@@ -4,7 +4,6 @@ from discord.ext import commands
 from discord.ui import View, Button
 
 from utils import Config
-from events import Events
 
 @app_commands.default_permissions(administrator=True)
 class Commands(commands.GroupCog, name='redpin'):
