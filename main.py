@@ -1,7 +1,6 @@
 import discord
 from discord.ext import commands
 
-from utils import Config
 from commands import Commands
 from events import Events
 
@@ -13,14 +12,12 @@ class Bot(commands.Bot):
         intents.members = True
         super().__init__(command_prefix = 'Born2PinForced2Prefix', intents=intents)
 
-        self.config = Config()
-
         # Set to True when developing
         self.synced = False
 
     async def setup_hook(self):
-        await self.add_cog( Commands(self, self.config) )
-        await self.add_cog( Events(self, self.config) )
+        await self.add_cog( Commands(self) )
+        await self.add_cog( Events(self) )
 
         if not self.synced:
             await self.tree.sync()
