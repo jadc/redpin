@@ -23,7 +23,7 @@ class Commands(commands.GroupCog, name='redpin'):
         
     async def pin(self, interaction: discord.Interaction, message: discord.Message):
         await Pin(self.bot, message).broadcast()
-        await interaction.response.send_message(f'Pinned a message.', ephemeral = True)
+        await interaction.response.send_message('Pinned a message.')
 
     # COMMANDS
     @app_commands.command(name = 'channel', description = 'Set which channel to send pins to.')
