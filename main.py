@@ -13,7 +13,7 @@ class Bot(commands.Bot):
         super().__init__(command_prefix = 'Born2PinForced2Prefix', intents=intents)
 
         # Set to True when developing
-        self.synced = True
+        self.synced = False
 
     async def setup_hook(self):
         await self.add_cog( Commands(self) )
