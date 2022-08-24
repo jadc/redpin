@@ -93,7 +93,7 @@ class Commands(commands.GroupCog, name='redpin'):
     @app_commands.command(name = 'dm', description = 'Toggle whether pinning a message notifies their author.')
     async def dm(self, interaction: discord.Interaction):
         # update config
-        config.guild(interaction.guild_id)['dm'] = not self.config.guild(interaction.guild_id)['dm']
+        config.guild(interaction.guild_id)['dm'] = not config.guild(interaction.guild_id)['dm']
         config.save()
 
         # response
