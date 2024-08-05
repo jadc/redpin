@@ -5,8 +5,7 @@ import (
 	"log"
 	"os/signal"
 	"github.com/bwmarrin/discordgo"
-
-	"strings"
+	"github.com/jadc/redpin/events"
 )
 
 func main(){
@@ -23,7 +22,7 @@ func main(){
     }
 
     // Register event handlers
-    discord.AddHandler(onMessage)
+    events.RegisterAll(discord)
 
     // Open session
     err = discord.Open()
@@ -38,14 +37,4 @@ func main(){
     log.Println("redpin is online. Press CTRL + C to exit.")
     <-block
     log.Println("Shutting down gracefully...")
-}
-
-func onMessage(discord *discordgo.Session, message *discordgo.MessageCreate) {
-    if message.Author.ID == discord.State.User.ID {
-        return
-    }
-
-    if strings.Contains(message.Content, "skibidi") {
-        discord.ChannelMessageSend(message.ChannelID, "toilet")
-    }
 }
