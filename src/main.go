@@ -5,6 +5,7 @@ import (
 	"log"
 	"os/signal"
 	"github.com/bwmarrin/discordgo"
+
 	"github.com/jadc/redpin/events"
 )
 
