@@ -1,12 +1,12 @@
 package main
 
 import (
-	"os"
-	"log"
-	"os/signal"
-	"github.com/bwmarrin/discordgo"
+    "os"
+    "log"
+    "os/signal"
+    "github.com/bwmarrin/discordgo"
 
-	"github.com/jadc/redpin/events"
+    "github.com/jadc/redpin/events"
 )
 
 func main(){
