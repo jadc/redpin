@@ -1,37 +1,37 @@
 package database
 
 import (
-	"context"
-	"log"
+    "context"
+    "log"
 )
 
 // Demo: https://github.com/practicalgo/go-sqlite-demo/blob/main/app.go#L48
 
 func init() {
-	// Connect to database
-	db, err := Connect()
-	if err != nil {
-		log.Fatal("Failed to connect to database: ", err)
-	}
+    // Connect to database
+    db, err := Connect()
+    if err != nil {
+        log.Fatal("Failed to connect to database: ", err)
+    }
 
-	// Create table
-	query := `
-        CREATE TABLE IF NOT EXISTS msgs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            message TEXT NOT NULL
-        )
+    // Create table
+    query := `
+    CREATE TABLE IF NOT EXISTS msgs (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        message TEXT NOT NULL
+    )
     `
-	_, err = db.Instance.ExecContext(context.Background(), query)
-	if err != nil {
-		log.Fatal("Failed to create table: ", err)
-	}
+    _, err = db.Instance.ExecContext(context.Background(), query)
+    if err != nil {
+        log.Fatal("Failed to create table: ", err)
+    }
 }
 
 func (db *database) AddMessage(message string) error {
     // Connect to database
     db, err := Connect()
     if err != nil {
-		log.Fatal("Failed to connect to database: ", err)
+        log.Fatal("Failed to connect to database: ", err)
     }
     // Insert message
     query := `INSERT INTO msgs (message) VALUES (?)`

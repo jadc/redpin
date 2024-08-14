@@ -22,7 +22,7 @@ var err error
 // otherwise should be abstracted with getters/setters
 func Connect() (*database, error) {
     // Only runs once
-	once.Do(func(){
+    once.Do(func(){
         // Retrieve file name from the environment
         database_url := "data.db"
         if x := os.Getenv("SQLITE_FILE_NAME"); x != "" {
@@ -41,6 +41,6 @@ func Connect() (*database, error) {
         db = &database{instance}
     })
 
-	// Returns current or new postgres instance (after testing with ping)
-	return db, err
+    // Returns current or new postgres instance (after testing with ping)
+    return db, err
 }
