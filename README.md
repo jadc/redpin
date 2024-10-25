@@ -7,3 +7,9 @@ Unlike most pin bots, redpin is highly configurable and flexible, supporting any
 
 ## Tour
 TODO
+
+## Contribution
+
+Install [Nix](https://nixos.org/download) and then run `nix develop` in the root of the repo.
+
+Redpin does not have many dependencies, so if you do not want to install Nix, you can read the [flake.nix](flake.nix) file and figure out what you need.
