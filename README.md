@@ -20,9 +20,15 @@ This repository contains the modern rewrite of **redpin** in Go. If you are look
     - [ ] Message pinning
     - [ ] Message pinning with replies
     - [ ] Command-based interface for per-guild configuration
+        - [ ] Pin Channel
+        - [ ] Reaction Count to Pin (each or sum)
+        - [ ] Allow pins from NSFW channels
+        - [ ] Allow self-pins
+        - [ ] Ping author when their message is pinned
+        - [ ] Select which emojis pin messages
 - [ ] Implement nice-to-haves
     - [ ] Per-user leaderboard for how many of their messages have been pinned (toggleable)
-    - [ ] Pin score: ratio between pins given and pins received
+    - [ ] Pin score: ratio between pins given and pins received (toggleable)
 - [ ] Write tests
 - [ ] Write CI/CD pipeline for automatic building and running tests
 - [ ] Write Dockerfile for production deployment
