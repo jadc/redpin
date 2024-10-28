@@ -18,8 +18,6 @@ var once sync.Once
 var err error
 
 // Connects to database and returns a pointer to it
-// The pointer should only be used when necessary,
-// otherwise should be abstracted with getters/setters
 func Connect() (*database, error) {
     // Only runs once
     once.Do(func(){
@@ -41,6 +39,6 @@ func Connect() (*database, error) {
         db = &database{instance}
     })
 
-    // Returns current or new postgres instance (after testing with ping)
+    // Returns current or new sqlite3 instance (after testing with ping)
     return db, err
 }
