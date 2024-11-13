@@ -1,72 +1,77 @@
 package database
 
 import (
-    "context"
+	"context"
+	"fmt"
     "log"
 )
 
-// Demo: https://github.com/practicalgo/go-sqlite-demo/blob/main/app.go#L48
-
-func init() {
-    // Connect to database
-    db, err := Connect()
+// CreateTable creates a message_id -> pin_id table for a given guild_id.
+func (db *database) CreateTable(guild_id string) error {
+    query := fmt.Sprintf(`
+        CREATE TABLE IF NOT EXISTS pins_%s (
+            message_id TEXT NOT NULL,
+            pin_id TEXT NOT NULL,
+            PRIMARY KEY (message_id, pin_id)
+        )
+    `, guild_id)
+    _, err = db.Instance.ExecContext(context.Background(), query, guild_id)
     if err != nil {
-        log.Fatal("Failed to connect to database: ", err)
-    }
-
-    // Create table
-    query := `
-    CREATE TABLE IF NOT EXISTS msgs (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        message TEXT NOT NULL
-    )
-    `
-    _, err = db.Instance.ExecContext(context.Background(), query)
-    if err != nil {
-        log.Fatal("Failed to create table: ", err)
-    }
-}
-
-func (db *database) AddMessage(message string) error {
-    // Connect to database
-    db, err := Connect()
-    if err != nil {
-        log.Fatal("Failed to connect to database: ", err)
-    }
-    // Insert message
-    query := `INSERT INTO msgs (message) VALUES (?)`
-    _, err = db.Instance.ExecContext(context.Background(), query, message)
-    if err != nil {
-        return err
+        return fmt.Errorf("Failed to create pins_%s table: %w", guild_id, err)
     }
     return nil
 }
 
-func (db *database) GetMessages() ([]string, error) {
-    // Connect to database
-    db, err := Connect()
+// AddPin inserts a message_id -> pin_id pair into the guild_id table.
+func (db *database) AddPin(guild_id string, message_id string, pin_id string) error {
+    log.Printf("Adding %s to pins_%s table\n", message_id, guild_id)
+
+    // Create guild pins table if it doesn't exist
+    err = db.CreateTable(guild_id)
     if err != nil {
-        log.Fatal("Failed to connect to database: ", err)
+        return fmt.Errorf("Failed to create table: %w", err)
     }
+
+    // Insert message
+    query := fmt.Sprintf(`INSERT INTO pins_%s (message_id, pin_id) VALUES (?, ?)`, guild_id)
+    _, err = db.Instance.ExecContext(context.Background(), query, message_id, pin_id)
+    if err != nil {
+        return fmt.Errorf("Failed to insert into table: %w", err)
+    }
+    return nil
+}
+
+func (db *database) GetMessages(guild_id string) ([]string, error) {
+    log.Printf("Retrieving messages from pins_%s table\n", guild_id)
+
+    // Create guild pins table if it doesn't exist
+    err = db.CreateTable(guild_id)
+    if err != nil {
+        return nil, err
+    }
+
     // Retrieve messages
     rows, err := db.Instance.QueryContext(
         context.Background(),
-        "SELECT message FROM msgs",
+        "SELECT * FROM pins_" + guild_id,
     )
     if err != nil {
-        return nil, err
+        return nil, fmt.Errorf("Failed to retrieve pinned messages: %w", err)
     }
     defer rows.Close()
 
     // Parse messages from SQL rows into string slice
     var messages []string
     for rows.Next() {
-        var message string
-        err = rows.Scan(&message)
+        var message_id string
+        var pin_id string
+
+        err = rows.Scan(&message_id, &pin_id)
+        log.Printf("Found message %s -> %s\n", message_id, pin_id)
         if err != nil {
             return nil, err
         }
-        messages = append(messages, message)
+        messages = append(messages, message_id + "-" + pin_id)
     }
     return messages, nil
 }
