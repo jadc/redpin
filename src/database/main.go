@@ -9,9 +9,8 @@ import (
     _ "modernc.org/sqlite"
 )
 
-type database struct {
-	Instance *sql.DB
-}
+// Enclose sqlite3 instance in a struct to have methods attached to it
+type database struct { Instance *sql.DB }
 var db *database
 
 var once sync.Once
@@ -31,7 +30,7 @@ func Connect() (*database, error) {
         // Create sqlite connection
         instance, err := sql.Open("sqlite", database_url)
         if err != nil {
-            log.Println("Failed to create SQLite connection: ", err)
+            log.Fatal("Failed to create SQLite connection: ", err)
         }
 
         // Assign to global variable
