@@ -10,7 +10,10 @@ import (
 )
 
 // Enclose sqlite3 instance in a struct to have methods attached to it
-type database struct { Instance *sql.DB }
+type database struct {
+    Instance *sql.DB
+    Config map[string]*Config
+}
 var db *database
 
 var once sync.Once
@@ -35,7 +38,7 @@ func Connect() (*database, error) {
 
         // Assign to global variable
         err = instance.Ping()
-        db = &database{instance}
+        db = &database{instance, make(map[string]*Config)}
     })
 
     // Returns current or new sqlite3 instance (after testing with ping)
