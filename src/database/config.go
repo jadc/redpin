@@ -9,7 +9,7 @@ import (
 
 type Config struct {
     Channel     string      `json:"channel"`
-    Threshold   int16       `json:"threshold"`
+    Threshold   int         `json:"threshold"`
     NSFW        bool        `json:"nsfw"`
     Selfpin     bool        `json:"selfpin"`
     Allowlist   []string    `json:"allowlist"`

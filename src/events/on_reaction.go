@@ -7,10 +7,9 @@ import (
 	"github.com/jadc/redpin/database"
 )
 
-// Map of message id to reaction emoji id to counts
-// Used to keep track of reaction counts instead of
-// constantly sending requests to the API (although API is used as a fallback)
-var reaction_counts = make(map[string]map[string]int)
+// Map of message id to reaction emoji id
+// Used to prevent self-pinning (if that is disabled)
+var selfpin = make(map[string]map[string]struct{})
 
 func onReaction(discord *discordgo.Session, event *discordgo.MessageReactionAdd) {
     reaction := event.MessageReaction
@@ -20,12 +19,25 @@ func onReaction(discord *discordgo.Session, event *discordgo.MessageReactionAdd)
         return
     }
 
-    // Update reaction count map
-    if reaction_counts[event.MessageID] == nil {
-        reaction_counts[event.MessageID] = make(map[string]int)
+    db, err := database.Connect()
+    if err != nil {
+        log.Printf("Failed to connect to database: %v", err)
     }
-    reaction_counts[event.MessageID][event.Emoji.ID]++
-    log.Printf("Added react for message %s, emoji %s, count %d", event.MessageID, event.Emoji.ID, reaction_counts[event.MessageID][event.Emoji.ID])
+    c := db.GetConfig(event.GuildID)
+
+    message, err := discord.ChannelMessage(reaction.ChannelID, reaction.MessageID)
+    if err != nil {
+        log.Printf("Failed to fetch message with ID %s: %v", reaction.MessageID, err)
+    }
+
+    // Keep track of self pins
+    if reaction.UserID == message.Author.ID {
+        if selfpin[event.MessageID] == nil {
+            selfpin[event.MessageID] = make(map[string]struct{})
+        }
+
+        selfpin[event.MessageID][event.Emoji.ID] = struct{}{}
+    }
 
     // TODO: query database for if message is already pinned
 
@@ -36,24 +48,12 @@ func onReaction(discord *discordgo.Session, event *discordgo.MessageReactionAdd)
     }
 
     // Ignore reactions in NSFW channels
-    // TODO: make this configurable
-    if channel.NSFW {
+    if channel.NSFW && !c.NSFW {
         return
     }
 
-    // Fetch message
-    message, err := discord.ChannelMessage(reaction.ChannelID, reaction.MessageID)
-    if err != nil {
-        log.Printf("Failed to fetch message with ID %s: %v", reaction.MessageID, err)
-    }
-
-    if !shouldPin(discord, message) {
+    if !shouldPin(discord, c, message) {
         return
-    }
-
-    db, err := database.Connect()
-    if err != nil {
-        log.Printf("Failed to connect to database: %v", err)
     }
 
     // TODO: replace last argument with actual pin event's ID, when thats implemented
@@ -67,22 +67,33 @@ func onReaction(discord *discordgo.Session, event *discordgo.MessageReactionAdd)
 
 func onReactionRemove(discord *discordgo.Session, event *discordgo.MessageReactionRemove) {
     // Update reaction count map
-    if reaction_counts[event.MessageID] != nil {
-        reaction_counts[event.MessageID][event.Emoji.ID]--
-        log.Printf("Removed react for message %s, emoji %s, count %d", event.MessageID, event.Emoji.ID, reaction_counts[event.MessageID][event.Emoji.ID])
+    if selfpin[event.MessageID] != nil {
+        reaction := event.MessageReaction
+        message, err := discord.ChannelMessage(reaction.ChannelID, reaction.MessageID)
+        if err != nil {
+            log.Printf("Failed to fetch message with ID %s: %v", reaction.MessageID, err)
+        }
+
+        if reaction.UserID == message.Author.ID {
+            if selfpin[event.MessageID] != nil {
+                delete(selfpin[event.MessageID], event.Emoji.ID)
+            }
+        }
+
     }
+    log.Printf("Removed react for message %s, emoji %s", event.MessageID, event.Emoji.ID)
 }
 
 func onMessageDelete(discord *discordgo.Session, event *discordgo.MessageDelete) {
     // Update reaction count map
-    if reaction_counts[event.Message.ID] != nil {
-        delete(reaction_counts, event.Message.ID)
+    if selfpin[event.Message.ID] != nil {
+        delete(selfpin, event.Message.ID)
         log.Printf("Deleted reaction count for message %s", event.Message.ID)
     }
 }
 
 // shouldPin checks all reactions of the messsage, and determines if it should be pinned.
-func shouldPin(discord *discordgo.Session, message *discordgo.Message) bool {
+func shouldPin(discord *discordgo.Session, c *database.Config, message *discordgo.Message) bool {
     for _, r := range message.Reactions {
         // Ignore reactions not in the allowlist
         // TODO: implement this
@@ -90,19 +101,18 @@ func shouldPin(discord *discordgo.Session, message *discordgo.Message) bool {
         count := r.Count
 
         // Remove reactions from the message author from the count
-        // TODO: make this configurable
-        /*
-        if r.== reaction.UserID {
-            return
+        if !c.Selfpin {
+            if _, ok := selfpin[message.ID][r.Emoji.ID]; ok {
+                count--
+            }
         }
-        */
 
         // Apply count multiplier for super reacts
         // TODO: implement this, https://discord.com/developers/docs/resources/message#reaction-object-reaction-structure
 
         // Pin messages with any reactions geq the threshold
-        // TODO: make this configurable
-        if count >= 2 {
+        log.Printf("Reaction count: %d", count)
+        if count >= c.Threshold {
             return true
         }
     }
