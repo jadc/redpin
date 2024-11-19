@@ -2,7 +2,7 @@ package events
 
 import (
 	"github.com/bwmarrin/discordgo"
-	"fmt"
+	//"fmt"
 	"log"
 
 	"github.com/jadc/redpin/database"
@@ -18,19 +18,11 @@ func onMessage(discord *discordgo.Session, message *discordgo.MessageCreate) {
         log.Fatal("Failed to connect to database: ", err)
     }
 
-    // TODO: replace last argument with actual pin message's ID, when thats implemented
-    db.AddPin(message.GuildID, message.ID, message.ID)
+    c := db.GetConfig(message.GuildID)
+    discord.ChannelMessageSend(message.ChannelID, c.Channel)
     if err != nil {
-        log.Fatal("Failed to pin message: ", err)
+        log.Fatal("Failed to get config: ", err)
     }
-
-    msgs, err := db.GetMessages(message.GuildID)
-    if err != nil {
-        log.Fatal("Failed to retrieve messages: ", err)
-    }
-
-    for i, msg := range msgs {
-        log.Printf("%d -> %s", i, msg)
-        discord.ChannelMessageSend(message.ChannelID, fmt.Sprintf("%d -> %s", i, msg))
-    }
+    c.Channel = message.Content;
+    db.SaveConfig(message.GuildID, c)
 }

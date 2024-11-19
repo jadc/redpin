@@ -6,8 +6,8 @@ import (
     "log"
 )
 
-// CreateTable creates a message_id -> pin_id table for a given guild_id.
-func (db *database) CreateTable(guild_id string) error {
+// createPinTable creates a message_id -> pin_id table for a given guild_id.
+func (db *database) createPinTable(guild_id string) error {
     query := fmt.Sprintf(`
         CREATE TABLE IF NOT EXISTS pins_%s (
             message_id TEXT NOT NULL,
@@ -27,7 +27,7 @@ func (db *database) AddPin(guild_id string, message_id string, pin_id string) er
     log.Printf("Adding %s to pins_%s table\n", message_id, guild_id)
 
     // Create guild pins table if it doesn't exist
-    err = db.CreateTable(guild_id)
+    err = db.createPinTable(guild_id)
     if err != nil {
         return fmt.Errorf("Failed to create table: %w", err)
     }
@@ -41,11 +41,11 @@ func (db *database) AddPin(guild_id string, message_id string, pin_id string) er
     return nil
 }
 
-func (db *database) GetMessages(guild_id string) ([]string, error) {
+func (db *database) getMessages(guild_id string) ([]string, error) {
     log.Printf("Retrieving messages from pins_%s table\n", guild_id)
 
     // Create guild pins table if it doesn't exist
-    err = db.CreateTable(guild_id)
+    err = db.createPinTable(guild_id)
     if err != nil {
         return nil, err
     }
