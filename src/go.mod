@@ -1,6 +1,6 @@
 module github.com/jadc/redpin
 
-go 1.22.5
+go 1.23.3
 
 require (
 	github.com/bwmarrin/discordgo v0.28.1
