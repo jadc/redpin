@@ -44,13 +44,5 @@ func main(){
     signal.Notify(block, os.Interrupt)
     log.Println("redpin is online. Press CTRL + C to exit.")
     <-block
-    log.Println("Shutting down gracefully...")
-
-    // Deregister slash commands
-    err = commands.DeregisterAll(discord)
-    if err != nil {
-        log.Print("Failed to deregister custom commands: ", err)
-    }
-
-    log.Println("Shut down gracefully.")
+    log.Println("Shutting down...")
 }

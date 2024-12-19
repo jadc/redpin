@@ -6,47 +6,49 @@ import (
     "github.com/bwmarrin/discordgo"
 )
 
+var signature = []*discordgo.ApplicationCommand{
+    {
+        Name: "redpin",
+        Description: "A Discord app for pinning messages and comparing stats",
+        Options: []*discordgo.ApplicationCommandOption{},
+    },
+};
+var handlers = map[string]func(discord *discordgo.Session, i *discordgo.InteractionCreate){}
+
 type Command struct {
-    metadata *discordgo.ApplicationCommand
+    metadata *discordgo.ApplicationCommandOption
     handler func(discord *discordgo.Session, i *discordgo.InteractionCreate)
 }
 
 func RegisterAll(discord *discordgo.Session) error {
-    if err := test_command.register(discord); err != nil { return err }
-    return nil;
-}
+    // Register all subcommands
+    command_config_channel.register()
+    command_config_threshold.register()
+    command_config_nsfw.register()
+    command_config_selfpin.register()
+    command_config_emoji.register()
 
-func (cmd *Command) register(discord *discordgo.Session) error {
-    // Register command signature
-    _, err := discord.ApplicationCommandCreate(discord.State.User.ID, "", cmd.metadata)
+    // Register redpin command signature
+    _, err := discord.ApplicationCommandBulkOverwrite(discord.State.User.ID, "", signature)
     if err != nil {
-        return fmt.Errorf("Failed to create '%v' command: %v", cmd.metadata.Name, err)
+        return fmt.Errorf("Failed to register main command: %v", err)
     }
 
     // Register command handler
     discord.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-        if i.ApplicationCommandData().Name == cmd.metadata.Name {
-            cmd.handler(s, i)
+        if i.ApplicationCommandData().Name == signature[0].Name {
+            if cmd, ok := handlers[i.ApplicationCommandData().Options[0].Name]; ok {
+                cmd(s, i)
+            }
         }
     })
 
-    log.Printf("Registered command '%v'", cmd.metadata.Name)
+    log.Printf("Registered main command and subcommands")
     return nil;
 }
 
-func DeregisterAll(discord *discordgo.Session) error {
-    cmds, err := discord.ApplicationCommands(discord.State.User.ID, "")
-    if err != nil {
-        return fmt.Errorf("Failed to fetch registered commands: %v", err)
-    }
-
-    for _, cmd := range cmds {
-        err := discord.ApplicationCommandDelete(discord.State.User.ID, "", cmd.ID)
-        if err != nil {
-            log.Printf("Failed to delete '%v' command: %v", cmd.Name, err)
-        }
-        log.Printf("Deregistered command '%v'", cmd.Name)
-    }
-
-    return nil;
+func (cmd *Command) register() {
+    signature[0].Options = append(signature[0].Options, cmd.metadata)
+    handlers[cmd.metadata.Name] = cmd.handler
+    log.Printf("Added " + cmd.metadata.Name + " subcommand")
 }
