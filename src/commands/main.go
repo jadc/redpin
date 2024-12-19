@@ -15,11 +15,6 @@ var signature = []*discordgo.ApplicationCommand{
 };
 var handlers = map[string]func(discord *discordgo.Session, i *discordgo.InteractionCreate){}
 
-type Command struct {
-    metadata *discordgo.ApplicationCommandOption
-    handler func(discord *discordgo.Session, i *discordgo.InteractionCreate)
-}
-
 func RegisterAll(discord *discordgo.Session) error {
     // Register all subcommands
     command_config_channel.register()
@@ -37,7 +32,6 @@ func RegisterAll(discord *discordgo.Session) error {
     // Register command handler
     discord.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
         if i.ApplicationCommandData().Name == signature[0].Name {
-
             if options := i.ApplicationCommandData().Options; len(options) == 0 {
                 // No arguments
                 command_config_main.handler(s, i)
@@ -51,6 +45,11 @@ func RegisterAll(discord *discordgo.Session) error {
 
     log.Printf("Registered main command and %d subcommands", len(handlers))
     return nil;
+}
+
+type Command struct {
+    metadata *discordgo.ApplicationCommandOption
+    handler func(discord *discordgo.Session, i *discordgo.InteractionCreate)
 }
 
 func (cmd *Command) register() {
