@@ -21,7 +21,7 @@ func RegisterAll(discord *discordgo.Session) error {
     command_config_threshold.register()
     command_config_nsfw.register()
     command_config_selfpin.register()
-    //command_config_emoji.register()
+    command_config_emoji.register()
 
     // Register redpin command signature
     _, err := discord.ApplicationCommandBulkOverwrite(discord.State.User.ID, "", signature)

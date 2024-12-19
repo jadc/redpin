@@ -3,6 +3,7 @@ package commands
 import (
     "github.com/bwmarrin/discordgo"
 	"github.com/jadc/redpin/database"
+	"github.com/jadc/redpin/misc"
 	"log"
 	"fmt"
 	"encoding/json"
@@ -221,18 +222,50 @@ var command_config_selfpin = Command{
     },
 }
 
-// TODO
 var command_config_emoji = Command{
     metadata: &discordgo.ApplicationCommandOption{
         Name: "emoji",
-        Description: "Customize which emojis can pin messages",
+        Description: "Customize which emojis can pin messages; write 'all' to allow any emoji",
         Type: discordgo.ApplicationCommandOptionString,
     },
     handler: func(discord *discordgo.Session, i *discordgo.InteractionCreate) {
+        // Fetch config for this guild
+        db, err := database.Connect()
+        if err != nil {
+            log.Printf("Failed to connect to database: %v", err)
+            return
+        }
+        c, err := db.GetConfig(i.GuildID)
+        if err != nil {
+            log.Printf("Failed to get config: %v", err)
+            return
+        }
+
+        // Write changes to config and save it
+        input := i.ApplicationCommandData().Options[0].StringValue()
+        emojis := misc.ExtractEmojis(input)
+
+        // If no emojis are given, clear the allow list
+        var resp string
+        if len(emojis) == 0 {
+            c.Allowlist = []string{}
+            resp = "Allowlist was cleared, any emoji can now pin messages"
+        } else {
+            c.Allowlist = emojis
+            err = db.SaveConfig(i.GuildID, c)
+            if err != nil {
+                log.Printf("Failed to save config: %v", err)
+                return
+            }
+            resp = "Allowlist was updated with the given emojis"
+        }
+
+        // Respond with success
         discord.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
             Type: discordgo.InteractionResponseChannelMessageWithSource,
             Data: &discordgo.InteractionResponseData{
-                Content: "TODO",
+                Content: resp,
+                Flags:   discordgo.MessageFlagsEphemeral,
             },
         })
     },
