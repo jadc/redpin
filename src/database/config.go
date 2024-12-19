@@ -8,11 +8,11 @@ import (
 )
 
 type Config struct {
-    Channel     string          `json:"channel"`
-    Threshold   int             `json:"threshold"`
-    NSFW        bool            `json:"nsfw"`
-    Selfpin     bool            `json:"selfpin"`
-    Allowlist   map[string]bool `json:"allowlist"`
+    Channel     string              `json:"channel"`
+    Threshold   int                 `json:"threshold"`
+    NSFW        bool                `json:"nsfw"`
+    Selfpin     bool                `json:"selfpin"`
+    Allowlist   map[string]struct{} `json:"allowlist"`
 }
 
 func (c *Config) New() *Config {
@@ -20,7 +20,7 @@ func (c *Config) New() *Config {
     c.Threshold = 1
     c.NSFW = false
     c.Selfpin = false
-    c.Allowlist = make(map[string]bool)
+    c.Allowlist = make(map[string]struct{})
     return c
 }
 
