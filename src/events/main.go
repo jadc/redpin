@@ -12,7 +12,6 @@ func RegisterAll(discord *discordgo.Session) {
 	})
 
     // Register event handlers
-    // discord.AddHandler(onMessage)
     discord.AddHandler(onReaction)
     discord.AddHandler(onReactionRemove)
     discord.AddHandler(onMessageDelete)
