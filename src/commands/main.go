@@ -9,7 +9,7 @@ import (
 var signature = []*discordgo.ApplicationCommand{
     {
         Name: "redpin",
-        Description: "A Discord app for pinning messages and comparing stats",
+        Description: "Execute with no arguments to view current config",
         Options: []*discordgo.ApplicationCommandOption{},
     },
 };
@@ -26,7 +26,7 @@ func RegisterAll(discord *discordgo.Session) error {
     command_config_threshold.register()
     command_config_nsfw.register()
     command_config_selfpin.register()
-    command_config_emoji.register()
+    //command_config_emoji.register()
 
     // Register redpin command signature
     _, err := discord.ApplicationCommandBulkOverwrite(discord.State.User.ID, "", signature)
@@ -37,18 +37,23 @@ func RegisterAll(discord *discordgo.Session) error {
     // Register command handler
     discord.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
         if i.ApplicationCommandData().Name == signature[0].Name {
-            if cmd, ok := handlers[i.ApplicationCommandData().Options[0].Name]; ok {
-                cmd(s, i)
+
+            if options := i.ApplicationCommandData().Options; len(options) == 0 {
+                // No arguments
+                command_config_main.handler(s, i)
+            } else {
+                if cmd, ok := handlers[options[0].Name]; ok {
+                    cmd(s, i)
+                }
             }
         }
     })
 
-    log.Printf("Registered main command and subcommands")
+    log.Printf("Registered main command and %d subcommands", len(handlers))
     return nil;
 }
 
 func (cmd *Command) register() {
     signature[0].Options = append(signature[0].Options, cmd.metadata)
     handlers[cmd.metadata.Name] = cmd.handler
-    log.Printf("Added " + cmd.metadata.Name + " subcommand")
 }

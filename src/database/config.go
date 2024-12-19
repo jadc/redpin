@@ -42,19 +42,19 @@ func (db *database) createConfigTable() error {
 }
 
 // GetConfig retrieves the config for a given guild_id, loads if it isn't.
-func (db *database) GetConfig(guild_id string) *Config {
+func (db *database) GetConfig(guild_id string) (*Config, error) {
     // Return config in memory if it is
     if c, ok := db.Config[guild_id]; ok {
-        return c
+        return c, nil
     }
 
     // Load config from database if it isn't in memory
     c, err := db.LoadConfig(guild_id)
     if err != nil {
-        log.Print(err)
+        return nil, err
     }
     db.Config[guild_id] = c
-    return c
+    return c, err
 }
 
 // LoadConfig retrieves the config for a given guild_id.

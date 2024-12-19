@@ -19,12 +19,6 @@ func onReaction(discord *discordgo.Session, event *discordgo.MessageReactionAdd)
         return
     }
 
-    db, err := database.Connect()
-    if err != nil {
-        log.Printf("Failed to connect to database: %v", err)
-    }
-    c := db.GetConfig(event.GuildID)
-
     message, err := discord.ChannelMessage(reaction.ChannelID, reaction.MessageID)
     if err != nil {
         log.Printf("Failed to fetch message with ID %s: %v", reaction.MessageID, err)
@@ -45,6 +39,15 @@ func onReaction(discord *discordgo.Session, event *discordgo.MessageReactionAdd)
     channel, err := discord.Channel(reaction.ChannelID)
     if err != nil {
         log.Printf("Failed to fetch channel with ID %s: %v", reaction.ChannelID, err)
+    }
+
+    db, err := database.Connect()
+    if err != nil {
+        log.Printf("Failed to connect to database: %v", err)
+    }
+    c, err := db.GetConfig(event.GuildID)
+    if err != nil {
+        log.Printf("Failed to get config: %v", err)
     }
 
     // Ignore reactions in NSFW channels
