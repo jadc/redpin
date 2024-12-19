@@ -5,6 +5,7 @@ import (
 	"slices"
 
 	emoji "github.com/Andrew-M-C/go.emoji"
+	"github.com/bwmarrin/discordgo"
 )
 
 var discord_emoji = regexp.MustCompile(`<(a)?:[\w]+:(\d+)>`)
@@ -30,4 +31,14 @@ func ExtractEmojis(text string) []string {
     // Return extracted emojis, without duplicates
     slices.Sort(res)
     return slices.Compact(res)
+}
+
+// GetEmojiID returns an identifier for the given emoji
+// If the emoji is a custom Discord emoji, the identifier is the emoji ID
+// If the emoji is a unicode emoji, the identifier is the emoji itself
+func GetEmojiID(emoji *discordgo.Emoji) string {
+    if len(emoji.ID) == 0 {
+        return emoji.Name
+    }
+    return emoji.ID
 }

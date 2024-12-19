@@ -248,10 +248,13 @@ var command_config_emoji = Command{
         // If no emojis are given, clear the allow list
         var resp string
         if len(emojis) == 0 {
-            c.Allowlist = []string{}
+            c.Allowlist = make(map[string]bool)
             resp = "Allowlist was cleared, any emoji can now pin messages"
         } else {
-            c.Allowlist = emojis
+            for _, emoji := range emojis {
+                c.Allowlist[emoji] = true
+            }
+
             err = db.SaveConfig(i.GuildID, c)
             if err != nil {
                 log.Printf("Failed to save config: %v", err)

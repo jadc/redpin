@@ -3,8 +3,10 @@ package events
 import (
 	"github.com/bwmarrin/discordgo"
 	"log"
+	"encoding/json"
 
 	"github.com/jadc/redpin/database"
+	"github.com/jadc/redpin/misc"
 )
 
 // Map of message id to reaction emoji id
@@ -13,6 +15,9 @@ var selfpin = make(map[string]map[string]struct{})
 
 func onReaction(discord *discordgo.Session, event *discordgo.MessageReactionAdd) {
     reaction := event.MessageReaction
+
+    j, _ := json.Marshal(reaction.Emoji)
+    log.Print("Reaction detected: ", string(j))
 
     // Ignore reaction events triggered by self
     if reaction.UserID == discord.State.User.ID {
@@ -98,8 +103,14 @@ func onMessageDelete(discord *discordgo.Session, event *discordgo.MessageDelete)
 // shouldPin checks all reactions of the messsage, and determines if it should be pinned.
 func shouldPin(discord *discordgo.Session, c *database.Config, message *discordgo.Message) bool {
     for _, r := range message.Reactions {
-        // Ignore reactions not in the allowlist
-        // TODO: implement this
+        // If allowlist is non-empty, only then filter emojis
+        if len(c.Allowlist) > 0 {
+            // Ignore reactions not in the allowlist hashset
+            if _, ok := c.Allowlist[misc.GetEmojiID(r.Emoji)]; !ok {
+                log.Print("Skipping reaction not in allowlist")
+                continue
+            }
+        }
 
         count := r.Count
 
