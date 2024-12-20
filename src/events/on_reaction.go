@@ -10,6 +10,7 @@ import (
 
 // Map of message id to reaction emoji id
 // Used to prevent self-pinning (if that is disabled)
+// Cached to reduce API calls
 var selfpin = make(map[string]map[string]struct{})
 
 func onReaction(discord *discordgo.Session, event *discordgo.MessageReactionAdd) {
@@ -25,19 +26,13 @@ func onReaction(discord *discordgo.Session, event *discordgo.MessageReactionAdd)
         log.Printf("Failed to fetch message with ID %s: %v", reaction.MessageID, err)
     }
 
-    // Keep track of self pins
+    // Update selfpin map on reaction add
     if reaction.UserID == message.Author.ID {
         if selfpin[event.MessageID] == nil {
             selfpin[event.MessageID] = make(map[string]struct{})
         }
 
         selfpin[event.MessageID][event.Emoji.ID] = struct{}{}
-    }
-
-    // Fetch channel
-    channel, err := discord.Channel(reaction.ChannelID)
-    if err != nil {
-        log.Printf("Failed to fetch channel with ID %s: %v", reaction.ChannelID, err)
     }
 
     db, err := database.Connect()
@@ -47,8 +42,11 @@ func onReaction(discord *discordgo.Session, event *discordgo.MessageReactionAdd)
     c := db.GetConfig(event.GuildID)
 
     // Ignore reactions in NSFW channels
-    if channel.NSFW && !c.NSFW {
-        return
+    if !c.NSFW {
+        if _, ok := is_nsfw[reaction.ChannelID]; ok {
+            log.Print("Skipping reaction in NSFW channel")
+            return
+        }
     }
 
     if !shouldPin(c, message) {
@@ -59,8 +57,8 @@ func onReaction(discord *discordgo.Session, event *discordgo.MessageReactionAdd)
     misc.PinMessage(discord, message)
 }
 
+// Update selfpin map on reaction remove
 func onReactionRemove(discord *discordgo.Session, event *discordgo.MessageReactionRemove) {
-    // Update reaction count map
     if selfpin[event.MessageID] != nil {
         reaction := event.MessageReaction
         message, err := discord.ChannelMessage(reaction.ChannelID, reaction.MessageID)
@@ -78,8 +76,8 @@ func onReactionRemove(discord *discordgo.Session, event *discordgo.MessageReacti
     log.Printf("Removed react for message %s, emoji %s", event.MessageID, event.Emoji.ID)
 }
 
+// Update selfpin map on message delete
 func onMessageDelete(discord *discordgo.Session, event *discordgo.MessageDelete) {
-    // Update reaction count map
     if selfpin[event.Message.ID] != nil {
         delete(selfpin, event.Message.ID)
         log.Printf("Deleted reaction count for message %s", event.Message.ID)
@@ -118,4 +116,32 @@ func shouldPin(c *database.Config, message *discordgo.Message) bool {
     }
 
     return false
+}
+
+// Hashset of ids of NSFW channels
+// Cached to reduce API calls
+var is_nsfw = make(map[string]struct{})
+
+func onReady(discord *discordgo.Session, event *discordgo.Ready) {
+    for _, guild := range event.Guilds {
+        channels, _ := discord.GuildChannels(guild.ID)
+        for _, channel := range channels {
+            if channel.NSFW {
+                is_nsfw[channel.ID] = struct{}{}
+            }
+        }
+    }
+    log.Printf("Cached %d channels' NSFW status", len(is_nsfw))
+}
+
+func onChannelUpdate(discord *discordgo.Session, event *discordgo.ChannelUpdate) {
+    if event.NSFW {
+        is_nsfw[event.Channel.ID] = struct{}{}
+    }
+}
+
+func onChannelDelete(discord *discordgo.Session, event *discordgo.ChannelDelete) {
+    if event.NSFW {
+        delete(is_nsfw, event.Channel.ID)
+    }
 }
