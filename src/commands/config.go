@@ -9,7 +9,7 @@ import (
 	"encoding/json"
 )
 
-func RegisterConfigCommand(discord *discordgo.Session) error {
+func registerConfig() error {
     // Add signature
     sig := &discordgo.ApplicationCommand{
         Name: "redpin",
@@ -17,7 +17,7 @@ func RegisterConfigCommand(discord *discordgo.Session) error {
         Options: []*discordgo.ApplicationCommandOption{},
     }
     signatures = append(signatures, sig)
-    handlers[sig.Name] = make(map[string]func(discord *discordgo.Session, i *discordgo.InteractionCreate))
+    handlers[sig.Name] = make(map[string]func(discord *discordgo.Session, option int, i *discordgo.InteractionCreate))
 
     // Register all subcommands
     command_config_main.register()
@@ -34,7 +34,7 @@ func RegisterConfigCommand(discord *discordgo.Session) error {
 // Command to view current config for the guild
 var command_config_main = Command{
     metadata: nil,
-    handler: func(discord *discordgo.Session, i *discordgo.InteractionCreate) {
+    handler: func(discord *discordgo.Session, option int, i *discordgo.InteractionCreate) {
         // Fetch config for this guild
         db, err := database.Connect()
         if err != nil {
@@ -69,7 +69,7 @@ var command_config_channel = Command{
             discordgo.ChannelTypeGuildText,
         },
     },
-    handler: func(discord *discordgo.Session, i *discordgo.InteractionCreate) {
+    handler: func(discord *discordgo.Session, option int, i *discordgo.InteractionCreate) {
         // Fetch config for this guild
         db, err := database.Connect()
         if err != nil {
@@ -79,7 +79,7 @@ var command_config_channel = Command{
         c := db.GetConfig(i.GuildID)
 
         // Write changes to config and save it
-        new_value := i.ApplicationCommandData().Options[0].ChannelValue(discord).ID
+        new_value := i.ApplicationCommandData().Options[option].ChannelValue(discord).ID
         if c.Channel != new_value {
             c.Channel = new_value
             err = db.SaveConfig(i.GuildID, c)
@@ -108,7 +108,7 @@ var command_config_threshold = Command{
         Type: discordgo.ApplicationCommandOptionInteger,
         MinValue: &command_config_threshold_min,
     },
-    handler: func(discord *discordgo.Session, i *discordgo.InteractionCreate) {
+    handler: func(discord *discordgo.Session, option int, i *discordgo.InteractionCreate) {
         // Fetch config for this guild
         db, err := database.Connect()
         if err != nil {
@@ -118,7 +118,7 @@ var command_config_threshold = Command{
         c := db.GetConfig(i.GuildID)
 
         // Write changes to config and save it
-        new_value := int(i.ApplicationCommandData().Options[0].IntValue())
+        new_value := int(i.ApplicationCommandData().Options[option].IntValue())
         if c.Threshold != new_value {
             c.Threshold = new_value
             err = db.SaveConfig(i.GuildID, c)
@@ -145,7 +145,7 @@ var command_config_nsfw = Command{
         Description: "Set whether messages from NSFW channels can be pinned",
         Type: discordgo.ApplicationCommandOptionBoolean,
     },
-    handler: func(discord *discordgo.Session, i *discordgo.InteractionCreate) {
+    handler: func(discord *discordgo.Session, option int, i *discordgo.InteractionCreate) {
         // Fetch config for this guild
         db, err := database.Connect()
         if err != nil {
@@ -155,7 +155,7 @@ var command_config_nsfw = Command{
         c := db.GetConfig(i.GuildID)
 
         // Write changes to config and save it
-        new_value := i.ApplicationCommandData().Options[0].BoolValue()
+        new_value := i.ApplicationCommandData().Options[option].BoolValue()
         if c.NSFW != new_value {
             c.NSFW = new_value
             err = db.SaveConfig(i.GuildID, c)
@@ -188,7 +188,7 @@ var command_config_selfpin = Command{
         Description: "Set whether messages can be pinned by their author",
         Type: discordgo.ApplicationCommandOptionBoolean,
     },
-    handler: func(discord *discordgo.Session, i *discordgo.InteractionCreate) {
+    handler: func(discord *discordgo.Session, option int, i *discordgo.InteractionCreate) {
         // Fetch config for this guild
         db, err := database.Connect()
         if err != nil {
@@ -198,7 +198,7 @@ var command_config_selfpin = Command{
         c := db.GetConfig(i.GuildID)
 
         // Write changes to config and save it
-        new_value := i.ApplicationCommandData().Options[0].BoolValue()
+        new_value := i.ApplicationCommandData().Options[option].BoolValue()
         if c.Selfpin != new_value {
             c.Selfpin = new_value
             err = db.SaveConfig(i.GuildID, c)
@@ -231,7 +231,7 @@ var command_config_emoji = Command{
         Description: "Customize which emojis can pin messages; write 'all' to allow any emoji",
         Type: discordgo.ApplicationCommandOptionString,
     },
-    handler: func(discord *discordgo.Session, i *discordgo.InteractionCreate) {
+    handler: func(discord *discordgo.Session, option int, i *discordgo.InteractionCreate) {
         // Fetch config for this guild
         db, err := database.Connect()
         if err != nil {
@@ -241,7 +241,7 @@ var command_config_emoji = Command{
         c := db.GetConfig(i.GuildID)
 
         // Write changes to config and save it
-        input := i.ApplicationCommandData().Options[0].StringValue()
+        input := i.ApplicationCommandData().Options[option].StringValue()
         emojis := misc.ExtractEmojis(input)
 
         // If no emojis are given, clear the allow list

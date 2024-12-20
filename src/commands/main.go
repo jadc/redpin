@@ -10,11 +10,12 @@ var index = 0
 var signatures = []*discordgo.ApplicationCommand{};
 
 // map[command_name][subcommand_name (if applicable, o.w. "")] = handler
-var handlers = map[string]map[string]func(discord *discordgo.Session, i *discordgo.InteractionCreate){}
+var handlers = map[string]map[string]func(discord *discordgo.Session, option int, i *discordgo.InteractionCreate){}
 
 func RegisterAll(discord *discordgo.Session) error {
     // Populate signature
-    RegisterConfigCommand(discord)
+    registerConfig()
+    registerPin()
 
     // Register signature
     _, err := discord.ApplicationCommandBulkOverwrite(discord.State.User.ID, "", signatures)
@@ -29,14 +30,14 @@ func RegisterAll(discord *discordgo.Session) error {
             // If no options are provided
             if len(i.ApplicationCommandData().Options) == 0 {
                 // Execute main command
-                handlers[i.ApplicationCommandData().Name][""](s, i)
+                handlers[i.ApplicationCommandData().Name][""](s, -1, i)
             } else {
                 // For each provided option
-                for _, opt := range i.ApplicationCommandData().Options {
+                for index, opt := range i.ApplicationCommandData().Options {
                     // If subcommand is registered
                     if cmd, ok := handlers[i.ApplicationCommandData().Name][opt.Name]; ok {
                         // Execute subcommand
-                        cmd(s, i)
+                        cmd(s, index, i)
                     }
                 }
             }
@@ -49,15 +50,15 @@ func RegisterAll(discord *discordgo.Session) error {
 
 type Command struct {
     metadata *discordgo.ApplicationCommandOption
-    handler func(discord *discordgo.Session, i *discordgo.InteractionCreate)
+    handler func(discord *discordgo.Session, option int, i *discordgo.InteractionCreate)
 }
 
 func (cmd *Command) register() {
     if cmd.metadata == nil {
-        // Add handler for command
+        // Add handler for command with no subcommands
         handlers[signatures[index].Name][""] = cmd.handler
     } else {
-        // Add signature and handler for subcommands
+        // Add handler for command with subcommands
         signatures[index].Options = append(signatures[index].Options, cmd.metadata)
         handlers[signatures[index].Name][cmd.metadata.Name] = cmd.handler
     }
