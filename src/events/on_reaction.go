@@ -50,10 +50,7 @@ func onReaction(discord *discordgo.Session, event *discordgo.MessageReactionAdd)
     if err != nil {
         log.Printf("Failed to connect to database: %v", err)
     }
-    c, err := db.GetConfig(event.GuildID)
-    if err != nil {
-        log.Printf("Failed to get config: %v", err)
-    }
+    c := db.GetConfig(event.GuildID)
 
     // Ignore reactions in NSFW channels
     if channel.NSFW && !c.NSFW {

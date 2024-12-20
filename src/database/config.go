@@ -42,42 +42,46 @@ func (db *database) createConfigTable() error {
 }
 
 // GetConfig retrieves the config for a given guild_id, loads if it isn't.
-func (db *database) GetConfig(guild_id string) (*Config, error) {
+func (db *database) GetConfig(guild_id string) *Config {
     // Return config in memory if it is
     if c, ok := db.Config[guild_id]; ok {
-        return c, nil
+        return c
     }
 
     // Load config from database if it isn't in memory
+    // If load fails, use default
     c, err := db.LoadConfig(guild_id)
     if err != nil {
-        return nil, err
+        log.Printf("Using default config for guild %s: %v\n", guild_id, err)
+        db.SaveConfig(guild_id, c)
     }
     db.Config[guild_id] = c
-    return c, err
+    return c
 }
 
 // LoadConfig retrieves the config for a given guild_id.
 func (db *database) LoadConfig(guild_id string) (*Config, error) {
     log.Printf("Loading config for guild %s\n", guild_id)
+
+    // Create new config object with defaults
     c := new(Config).New()
 
     // Create guild pins table if it doesn't exist
     if err := db.createConfigTable(); err != nil {
-        return c, fmt.Errorf("Failed to create table for guild %s, using default: %w", guild_id, err)
+        return c, fmt.Errorf("Failed to create table for guild %s: %w", guild_id, err)
     }
 
     // Retrieve config data from database, load default if not found
     var raw string
     err = db.Instance.QueryRow("SELECT json FROM config WHERE guild_id = ?", guild_id).Scan(&raw)
     if err != nil {
-        return c, fmt.Errorf("Failed to retrieve config for guild %s, using default: %w", guild_id, err)
+        return c, fmt.Errorf("Failed to retrieve config for guild %s: %w", guild_id, err)
     }
 
-    // Update global config map
+    // Load config into new object
     err := json.Unmarshal([]byte(raw), c)
     if err != nil {
-        return c, fmt.Errorf("Failed to unmarshal config for guild %s, using default: %w", guild_id, err)
+        return c, fmt.Errorf("Failed to unmarshal config for guild %s: %w", guild_id, err)
     }
 
     return c, nil

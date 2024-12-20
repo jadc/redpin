@@ -19,11 +19,8 @@ var command_config_main = Command{
             log.Printf("Failed to connect to database: %v", err)
             return
         }
-        c, err := db.GetConfig(i.GuildID)
-        if err != nil {
-            log.Printf("Failed to get config: %v", err)
-            return
-        }
+        c := db.GetConfig(i.GuildID)
+
         j, err := json.MarshalIndent(c, "", "    ")
         if err != nil {
             log.Printf("Failed to marshal config: %v", err)
@@ -57,11 +54,7 @@ var command_config_channel = Command{
             log.Printf("Failed to connect to database: %v", err)
             return
         }
-        c, err := db.GetConfig(i.GuildID)
-        if err != nil {
-            log.Printf("Failed to get config: %v", err)
-            return
-        }
+        c := db.GetConfig(i.GuildID)
 
         // Write changes to config and save it
         new_value := i.ApplicationCommandData().Options[0].ChannelValue(discord).ID
@@ -100,11 +93,7 @@ var command_config_threshold = Command{
             log.Printf("Failed to connect to database: %v", err)
             return
         }
-        c, err := db.GetConfig(i.GuildID)
-        if err != nil {
-            log.Printf("Failed to get config: %v", err)
-            return
-        }
+        c := db.GetConfig(i.GuildID)
 
         // Write changes to config and save it
         new_value := int(i.ApplicationCommandData().Options[0].IntValue())
@@ -141,11 +130,7 @@ var command_config_nsfw = Command{
             log.Printf("Failed to connect to database: %v", err)
             return
         }
-        c, err := db.GetConfig(i.GuildID)
-        if err != nil {
-            log.Printf("Failed to get config: %v", err)
-            return
-        }
+        c := db.GetConfig(i.GuildID)
 
         // Write changes to config and save it
         new_value := i.ApplicationCommandData().Options[0].BoolValue()
@@ -188,11 +173,7 @@ var command_config_selfpin = Command{
             log.Printf("Failed to connect to database: %v", err)
             return
         }
-        c, err := db.GetConfig(i.GuildID)
-        if err != nil {
-            log.Printf("Failed to get config: %v", err)
-            return
-        }
+        c := db.GetConfig(i.GuildID)
 
         // Write changes to config and save it
         new_value := i.ApplicationCommandData().Options[0].BoolValue()
@@ -235,11 +216,7 @@ var command_config_emoji = Command{
             log.Printf("Failed to connect to database: %v", err)
             return
         }
-        c, err := db.GetConfig(i.GuildID)
-        if err != nil {
-            log.Printf("Failed to get config: %v", err)
-            return
-        }
+        c := db.GetConfig(i.GuildID)
 
         // Write changes to config and save it
         input := i.ApplicationCommandData().Options[0].StringValue()
