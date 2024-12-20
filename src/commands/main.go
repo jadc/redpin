@@ -6,44 +6,44 @@ import (
     "github.com/bwmarrin/discordgo"
 )
 
-var signature = []*discordgo.ApplicationCommand{
-    {
-        Name: "redpin",
-        Description: "Execute with no arguments to view current config",
-        Options: []*discordgo.ApplicationCommandOption{},
-    },
-};
-var handlers = map[string]func(discord *discordgo.Session, i *discordgo.InteractionCreate){}
+var index = 0
+var signatures = []*discordgo.ApplicationCommand{};
+
+// map[command_name][subcommand_name (if applicable, o.w. "")] = handler
+var handlers = map[string]map[string]func(discord *discordgo.Session, i *discordgo.InteractionCreate){}
 
 func RegisterAll(discord *discordgo.Session) error {
-    // Register all subcommands
-    command_config_channel.register()
-    command_config_threshold.register()
-    command_config_nsfw.register()
-    command_config_selfpin.register()
-    command_config_emoji.register()
+    // Populate signature
+    RegisterConfigCommand(discord)
 
-    // Register redpin command signature
-    _, err := discord.ApplicationCommandBulkOverwrite(discord.State.User.ID, "", signature)
+    // Register signature
+    _, err := discord.ApplicationCommandBulkOverwrite(discord.State.User.ID, "", signatures)
     if err != nil {
         return fmt.Errorf("Failed to register main command: %v", err)
     }
 
     // Register command handler
     discord.AddHandler(func(s *discordgo.Session, i *discordgo.InteractionCreate) {
-        if i.ApplicationCommandData().Name == signature[0].Name {
-            if options := i.ApplicationCommandData().Options; len(options) == 0 {
-                // No arguments
-                command_config_main.handler(s, i)
+        // If command is registered
+        if _, ok := handlers[i.ApplicationCommandData().Name]; ok {
+            // If no options are provided
+            if len(i.ApplicationCommandData().Options) == 0 {
+                // Execute main command
+                handlers[i.ApplicationCommandData().Name][""](s, i)
             } else {
-                if cmd, ok := handlers[options[0].Name]; ok {
-                    cmd(s, i)
+                // For each provided option
+                for _, opt := range i.ApplicationCommandData().Options {
+                    // If subcommand is registered
+                    if cmd, ok := handlers[i.ApplicationCommandData().Name][opt.Name]; ok {
+                        // Execute subcommand
+                        cmd(s, i)
+                    }
                 }
             }
         }
     })
 
-    log.Printf("Registered main command and %d subcommands", len(handlers))
+    log.Printf("Registered %d commands and subcommands", len(handlers))
     return nil;
 }
 
@@ -53,6 +53,12 @@ type Command struct {
 }
 
 func (cmd *Command) register() {
-    signature[0].Options = append(signature[0].Options, cmd.metadata)
-    handlers[cmd.metadata.Name] = cmd.handler
+    if cmd.metadata == nil {
+        // Add handler for command
+        handlers[signatures[index].Name][""] = cmd.handler
+    } else {
+        // Add signature and handler for subcommands
+        signatures[index].Options = append(signatures[index].Options, cmd.metadata)
+        handlers[signatures[index].Name][cmd.metadata.Name] = cmd.handler
+    }
 }

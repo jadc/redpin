@@ -9,6 +9,28 @@ import (
 	"encoding/json"
 )
 
+func RegisterConfigCommand(discord *discordgo.Session) error {
+    // Add signature
+    sig := &discordgo.ApplicationCommand{
+        Name: "redpin",
+        Description: "Execute with no arguments to view current config",
+        Options: []*discordgo.ApplicationCommandOption{},
+    }
+    signatures = append(signatures, sig)
+    handlers[sig.Name] = make(map[string]func(discord *discordgo.Session, i *discordgo.InteractionCreate))
+
+    // Register all subcommands
+    command_config_main.register()
+    command_config_channel.register()
+    command_config_threshold.register()
+    command_config_nsfw.register()
+    command_config_selfpin.register()
+    command_config_emoji.register()
+    index += 1
+
+    return nil
+}
+
 // Command to view current config for the guild
 var command_config_main = Command{
     metadata: nil,
