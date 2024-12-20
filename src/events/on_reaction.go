@@ -3,7 +3,6 @@ package events
 import (
 	"github.com/bwmarrin/discordgo"
 	"log"
-	"encoding/json"
 
 	"github.com/jadc/redpin/database"
 	"github.com/jadc/redpin/misc"
@@ -15,9 +14,6 @@ var selfpin = make(map[string]map[string]struct{})
 
 func onReaction(discord *discordgo.Session, event *discordgo.MessageReactionAdd) {
     reaction := event.MessageReaction
-
-    j, _ := json.Marshal(reaction.Emoji)
-    log.Print("Reaction detected: ", string(j))
 
     // Ignore reaction events triggered by self
     if reaction.UserID == discord.State.User.ID {
@@ -38,8 +34,6 @@ func onReaction(discord *discordgo.Session, event *discordgo.MessageReactionAdd)
         selfpin[event.MessageID][event.Emoji.ID] = struct{}{}
     }
 
-    // TODO: query database for if message is already pinned
-
     // Fetch channel
     channel, err := discord.Channel(reaction.ChannelID)
     if err != nil {
@@ -57,17 +51,12 @@ func onReaction(discord *discordgo.Session, event *discordgo.MessageReactionAdd)
         return
     }
 
-    if !shouldPin(discord, c, message) {
+    if !shouldPin(c, message) {
         return
     }
 
-    // TODO: replace last argument with actual pin event's ID, when thats implemented
-    db.AddPin(event.GuildID, event.MessageID, event.MessageID)
-    if err != nil {
-        log.Fatal("Failed to pin event: ", err)
-    }
-
-    log.Printf("Pinned message with ID %s", reaction.MessageID)
+    // If reaching this far, pin the message
+    misc.PinMessage(discord, message)
 }
 
 func onReactionRemove(discord *discordgo.Session, event *discordgo.MessageReactionRemove) {
@@ -97,8 +86,8 @@ func onMessageDelete(discord *discordgo.Session, event *discordgo.MessageDelete)
     }
 }
 
-// shouldPin checks all reactions of the messsage, and determines if it should be pinned.
-func shouldPin(discord *discordgo.Session, c *database.Config, message *discordgo.Message) bool {
+// shouldPin checks all reactions of the messsage, and determines if the message should be pinned.
+func shouldPin(c *database.Config, message *discordgo.Message) bool {
     for _, r := range message.Reactions {
         // If allowlist is non-empty, only then filter emojis
         if len(c.Allowlist) > 0 {
