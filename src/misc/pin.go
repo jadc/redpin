@@ -3,7 +3,7 @@ package misc
 import (
     "log"
 	"github.com/bwmarrin/discordgo"
-	"github.com/jadc/redpin/database"
+	//"github.com/jadc/redpin/database"
 )
 
 // PinMessage pins a message, forwarding it to the pin channel
@@ -14,6 +14,8 @@ func PinMessage(discord *discordgo.Session, msg *discordgo.Message) (string, err
     if err != nil {
         log.Printf("Failed to connect to database: %v", err)
     }
+
+    // TODO: query database for if message is already pinned
 
     // TODO: replace last argument with actual pin event's ID, when thats implemented
     db.AddPin(event.GuildID, event.MessageID, event.MessageID)
