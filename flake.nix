@@ -7,7 +7,7 @@
     in {
         devShells.${system}.default = pkgs.mkShell {
             packages = with pkgs; [ go ];
-            VERBOSE = 1;
+            shellHook = "source .env && cd src && go run main.go";
         };
     };
 }
