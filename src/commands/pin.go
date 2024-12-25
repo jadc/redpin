@@ -27,7 +27,7 @@ var command_pin = Command{
     metadata: nil,
     handler: func(discord *discordgo.Session, option int, i *discordgo.InteractionCreate) {
         selected_msg := i.ApplicationCommandData().Resolved.Messages[i.ApplicationCommandData().TargetID]
-        _, err := misc.PinMessage(discord, selected_msg)
+        _, err := misc.PinMessage(discord, i.GuildID, selected_msg)
 
         // Only respond if failure
         if err != nil {

@@ -3,7 +3,6 @@ package database
 import (
 	"context"
 	"fmt"
-    "log"
 )
 
 // createPinTable creates a message_id -> pin_id table for a given guild_id.
@@ -24,8 +23,6 @@ func (db *database) createPinTable(guild_id string) error {
 
 // AddPin inserts a message_id -> pin_id pair into the guild_id table.
 func (db *database) AddPin(guild_id string, message_id string, pin_id string) error {
-    log.Printf("Adding %s to pins_%s table\n", message_id, guild_id)
-
     // Create guild pins table if it doesn't exist
     err = db.createPinTable(guild_id)
     if err != nil {
@@ -41,6 +38,31 @@ func (db *database) AddPin(guild_id string, message_id string, pin_id string) er
     return nil
 }
 
+// GetPin retrieves the pin message id from the guild_id table given a guild_id and message_id.
+func (db *database) GetPin(guild_id string, message_id string) (string, error) {
+    pin_id := ""
+
+    // Create guild pins table if it doesn't exist
+    err = db.createPinTable(guild_id)
+    if err != nil {
+        return "", fmt.Errorf("Failed to create table: %w", err)
+    }
+
+    // Retrieve pin_id associated with message_id
+    err := db.Instance.QueryRowContext(
+        context.Background(),
+        "SELECT pin_id FROM pins_" + guild_id + " WHERE message_id = ?", message_id,
+    ).Scan(&pin_id)
+
+    // Throw up any error
+    if err != nil {
+        return "", err
+    }
+
+    return pin_id, nil
+}
+
+/*
 func (db *database) getMessages(guild_id string) ([]string, error) {
     log.Printf("Retrieving messages from pins_%s table\n", guild_id)
 
@@ -75,3 +97,4 @@ func (db *database) getMessages(guild_id string) ([]string, error) {
     }
     return messages, nil
 }
+*/
