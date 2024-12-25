@@ -15,22 +15,22 @@ This repository contains the modern rewrite of **redpin** in Go. If you are look
 ## TODO
 
 - [ ] Implement core functionality
-    - [ ] Message detection
-    - [ ] Automatic webhook creation and usage
-    - [ ] Message pinning
+    - [x] Message detection
+    - [x] Automatic webhook creation and usage
+    - [x] Message pinning
     - [ ] Message pinning with replies
-    - [ ] Command-based interface for per-guild configuration
-        - [ ] Pin Channel
-        - [ ] Reaction Count to Pin (each or sum)
-        - [ ] Allow pins from NSFW channels
-        - [ ] Allow self-pins
-        - [ ] Ping author when their message is pinned
-        - [ ] Select which emojis pin messages
+    - [x] Command-based interface for per-guild configuration
+        - [x] Pin Channel
+        - [x] Reaction Count to Pin (each or sum)
+        - [x] Allow pins from NSFW channels
+        - [x] Allow self-pins
+        - ~~[ ] Ping author when their message is pinned~~
+        - [x] Select which emojis pin messages
 - [ ] Implement nice-to-haves
     - [ ] Per-user leaderboard for how many of their messages have been pinned (toggleable)
     - [ ] Pin score: ratio between pins given and pins received (toggleable)
 - [ ] Write tests
-- [ ] Write CI/CD pipeline for automatic building and running tests
+- [x] Write CI/CD pipeline for automatic building and running tests
 - [ ] Write Dockerfile for production deployment
 - [x] Write Nix Shell for development environment
 - [ ] Showcase bot in [Tour](#Tour)
