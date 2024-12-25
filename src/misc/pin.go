@@ -49,6 +49,31 @@ func PinMessage(discord *discordgo.Session, guild_id string, msg *discordgo.Mess
         return "", fmt.Errorf("Failed to get username: %v", err)
     }
 
+    // If the message being pinned is a reply, pin the referenced message first
+    if msg.MessageReference != nil {
+        // Get the referenced message
+        ref_msg, err := discord.ChannelMessage(msg.MessageReference.ChannelID, msg.MessageReference.MessageID)
+        if err != nil {
+            log.Printf("Failed to get referenced message of message '%s': %v", msg.ID, err)
+        }
+
+        // Pin the referenced message
+        ref_pin_msg_id, err := PinMessage(discord, guild_id, ref_msg)
+        if err != nil {
+            log.Printf("Failed to pin referenced message of message '%s': %v", msg.ID, err)
+        }
+
+        // Send link to pinned referenced message
+        _, err = discord.WebhookExecute(webhook.ID, webhook.Token, false, &discordgo.WebhookParams{
+            Content: fmt.Sprintf("-# Reply to https://discord.com/channels/%s/%s/%s", guild_id, c.Channel, ref_pin_msg_id),
+            Username: name,
+            AvatarURL: msg.Author.AvatarURL(""),
+        })
+        if err != nil {
+            log.Printf("Failed to send link to pinned referenced message of message '%s': %v", msg.ID, err)
+        }
+    }
+
     // Create a webhook copy of the message
     // TODO: make deep copy of original message
     params := &discordgo.WebhookParams{
