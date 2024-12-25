@@ -97,5 +97,9 @@ func getUserName(discord *discordgo.Session, guild_id string, user *discordgo.Us
         return member.Nick, nil
     }
 
+    if len(member.User.GlobalName) > 0 {
+        return member.User.GlobalName, nil
+    }
+
     return user.Username, nil
 }
