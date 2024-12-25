@@ -54,7 +54,10 @@ func onReaction(discord *discordgo.Session, event *discordgo.MessageReactionAdd)
     }
 
     // If reaching this far, pin the message
-    misc.PinMessage(discord, message)
+    _, err = misc.PinMessage(discord, event.GuildID, message)
+    if err != nil {
+        log.Printf("Failed to pin message with ID %s: %v", message.ID, err)
+    }
 }
 
 // Update selfpin map on reaction remove
