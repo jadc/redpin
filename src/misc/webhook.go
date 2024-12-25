@@ -36,9 +36,8 @@ func GetWebhook(discord *discordgo.Session, guild_id string) (*discordgo.Webhook
     // Retrieve webhook object, create a new one if it's invalid
     webhook, err := discord.Webhook(webhook_id)
     if err != nil {
-        log.Printf("Failed to retrieve webhook '%s', creating new one: %v", webhook_id, err)
-        webhook, err := createWebhook(discord, guild_id, c.Channel)
-        return webhook, err
+        log.Printf("Failed to retrieve webhook '%s', creating a new one: %v", webhook_id, err)
+        return createWebhook(discord, guild_id, c.Channel)
     }
 
     // Ensure webhook is pointing to current pin channel
@@ -52,8 +51,7 @@ func GetWebhook(discord *discordgo.Session, guild_id string) (*discordgo.Webhook
         }
 
         // Create new webhook in pin channel
-        webhook, err := createWebhook(discord, guild_id, c.Channel)
-        return webhook, err
+        return createWebhook(discord, guild_id, c.Channel)
     }
 
     // Return existing webhook if it is valid
