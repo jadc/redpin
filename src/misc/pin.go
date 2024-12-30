@@ -10,7 +10,7 @@ import (
 )
 
 // PinMessage pins a message, forwarding it to the pin channel
-// Returns the pin message's ID if successful
+// Returns the used pin channel ID and pin message's ID if successful
 func PinMessage(discord *discordgo.Session, guild_id string, msg *discordgo.Message) (string, string, error) {
     log.Printf("Pinning message '%s' in guild '%s'", msg.ID, guild_id)
 
@@ -42,10 +42,36 @@ func PinMessage(discord *discordgo.Session, guild_id string, msg *discordgo.Mess
         return "", "", fmt.Errorf("Failed to retrieve webhook: %v", err)
     }
 
-    // Get message author's name
-    name, err := getUserName(discord, guild_id, msg.Author)
+    // Create base webhook params
+    params := &discordgo.WebhookParams{
+        Username: "Unknown",
+        AvatarURL: "",
+
+        // Disable pinging
+        AllowedMentions: &discordgo.MessageAllowedMentions{},
+    }
+    if a := msg.Author; a != nil {
+        // Get message author's name
+        name := a.Username
+        member, err := discord.GuildMember(guild_id, a.ID)
+        if err == nil {
+            if len(member.Nick) > 0 {
+                name = member.Nick
+            } else if len(member.User.GlobalName) > 0 {
+                name = member.User.GlobalName
+            }
+
+            params.Username = name
+        }
+
+        // Copy avatar
+        params.AvatarURL = msg.Author.AvatarURL("")
+    }
+
+    // Create copy of message as webhook
+    p, err := cloneParams(discord, guild_id, params, msg)
     if err != nil {
-        return "", "", fmt.Errorf("Failed to get username: %v", err)
+        return "", "", fmt.Errorf("Failed to clone message: %v", err)
     }
 
     // If the message being pinned is a reply, pin the referenced message first
@@ -63,33 +89,15 @@ func PinMessage(discord *discordgo.Session, guild_id string, msg *discordgo.Mess
         }
 
         // Send link to pinned referenced message
-        _, err = discord.WebhookExecute(webhook.ID, webhook.Token, false, &discordgo.WebhookParams{
-            Content: fmt.Sprintf("-# Reply to https://discord.com/channels/%s/%s/%s", guild_id, ref_pin_channel_id, ref_pin_msg_id),
-            Username: name,
-            AvatarURL: msg.Author.AvatarURL(""),
-        })
+        params.Content = fmt.Sprintf("-# ╰ Reply to https://discord.com/channels/%s/%s/%s", guild_id, ref_pin_channel_id, ref_pin_msg_id)
+        _, err = discord.WebhookExecute(webhook.ID, webhook.Token, false, params)
         if err != nil {
             log.Printf("Failed to send link to pinned referenced message of message '%s': %v", msg.ID, err)
         }
     }
 
-    // Create a webhook copy of the message
-    // TODO: make deep copy of original message
-    params := &discordgo.WebhookParams{
-        // Copy identity
-        Username: name,
-        AvatarURL: msg.Author.AvatarURL(""),
-
-        // Prevent pins from pinging
-        AllowedMentions: &discordgo.MessageAllowedMentions{},
-
-        // Copy message content
-        Content: msg.Content,
-        Embeds: msg.Embeds,
-    }
-
     // Send the webhook copy to the pin channel
-    pin_msg, err := discord.WebhookExecute(webhook.ID, webhook.Token, true, params)
+    pin_msg, err := discord.WebhookExecute(webhook.ID, webhook.Token, true, p)
     if err != nil {
         return "", "", fmt.Errorf("Failed to execute webhook: %v", err)
     }
@@ -101,13 +109,15 @@ func PinMessage(discord *discordgo.Session, guild_id string, msg *discordgo.Mess
     }
 
     // Send link to original message
-    _, err = discord.WebhookExecute(webhook.ID, webhook.Token, false, &discordgo.WebhookParams{
-        Content: fmt.Sprintf("-# https://discord.com/channels/%s/%s/%s", guild_id, msg.ChannelID, msg.ID),
-        Username: name,
-        AvatarURL: msg.Author.AvatarURL(""),
-    })
+    params.Content = fmt.Sprintf("-# https://discord.com/channels/%s/%s/%s", guild_id, msg.ChannelID, msg.ID)
+    _, err = discord.WebhookExecute(webhook.ID, webhook.Token, false, params)
     if err != nil {
         return "", "", fmt.Errorf("Failed to execute webhook: %v", err)
+    }
+
+    // Copy reactions from original message if possible
+    for _, r := range msg.Reactions {
+        _ = discord.MessageReactionAdd(pin_msg.ChannelID, pin_msg.ID, r.Emoji.APIName())
     }
 
     return pin_msg.ChannelID, pin_msg.ID, nil
