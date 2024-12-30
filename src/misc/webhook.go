@@ -5,6 +5,7 @@ import (
 	"fmt"
     "log"
     "encoding/json"
+    "net/http"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/jadc/redpin/database"
@@ -86,32 +87,28 @@ func cloneParams(discord *discordgo.Session, guild_id string, params *discordgo.
     // Create copy of given params (shallow is enough)
     p := *params
 
-    j, _ := json.MarshalIndent(msg, "", "  ")
-    log.Print(string(j))
-
-    // Copy contents
+    // Copy all contents that match
     p.Content = msg.Content
     p.Components = msg.Components
     p.Embeds = msg.Embeds
-    p.Attachments = msg.Attachments
-
-    x, _ := json.MarshalIndent(p, "", "  ")
-    log.Print(string(x))
-
 
     // Reupload attachments if there are any
-    /*
     for _, a := range msg.Attachments {
         // Download attachment
-        file, err := discord.ChannelFile(msg.ChannelID, a.URL)
-
-        f, err := discord.ChannelFile(msg.ChannelID, a.URL)
+        file, err := http.DefaultClient.Get(a.URL)
         if err != nil {
-            return nil, fmt.Errorf("Failed to reupload attachment '%s': %v", a.URL, err)
+            file, err = http.DefaultClient.Get(a.ProxyURL)
+            if err != nil {
+                return nil, fmt.Errorf("Failed to download attachment '%s': %v", a.URL, err)
+            }
         }
-        p.Files = append(p.Files, f)
+
+        // Reupload attachment
+        p.Files = append(p.Files, &discordgo.File{
+            Name: a.Filename,
+            Reader: file.Body,
+        })
     }
-    */
 
     return &p, nil
 }
