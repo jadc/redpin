@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
     "log"
+    "encoding/json"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/jadc/redpin/database"
@@ -80,20 +81,37 @@ func createWebhook(discord *discordgo.Session, guild_id string, channel_id strin
     return webhook, nil
 }
 
-// GetUserName gets the nickname, or if it is not set, username, for a given user
-func getUserName(discord *discordgo.Session, guild_id string, user *discordgo.User) (string, error) {
-    member, err := discord.GuildMember(guild_id, user.ID)
-    if err != nil {
-        return "", fmt.Errorf("Failed to retrieve member with ID '%s': %v", user.ID, err)
-    }
+// cloneParams clones a message into an equivalent a webhook params object
+func cloneParams(discord *discordgo.Session, guild_id string, params *discordgo.WebhookParams, msg *discordgo.Message) (*discordgo.WebhookParams, error) {
+    // Create copy of given params (shallow is enough)
+    p := *params
 
-    if len(member.Nick) > 0 {
-        return member.Nick, nil
-    }
+    j, _ := json.MarshalIndent(msg, "", "  ")
+    log.Print(string(j))
 
-    if len(member.User.GlobalName) > 0 {
-        return member.User.GlobalName, nil
-    }
+    // Copy contents
+    p.Content = msg.Content
+    p.Components = msg.Components
+    p.Embeds = msg.Embeds
+    p.Attachments = msg.Attachments
 
-    return user.Username, nil
+    x, _ := json.MarshalIndent(p, "", "  ")
+    log.Print(string(x))
+
+
+    // Reupload attachments if there are any
+    /*
+    for _, a := range msg.Attachments {
+        // Download attachment
+        file, err := discord.ChannelFile(msg.ChannelID, a.URL)
+
+        f, err := discord.ChannelFile(msg.ChannelID, a.URL)
+        if err != nil {
+            return nil, fmt.Errorf("Failed to reupload attachment '%s': %v", a.URL, err)
+        }
+        p.Files = append(p.Files, f)
+    }
+    */
+
+    return &p, nil
 }
