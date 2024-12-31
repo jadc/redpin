@@ -4,7 +4,6 @@ import (
 	"database/sql"
 	"fmt"
     "log"
-    "encoding/json"
     "net/http"
 
 	"github.com/bwmarrin/discordgo"
@@ -46,10 +45,15 @@ func GetWebhook(discord *discordgo.Session, guild_id string) (*discordgo.Webhook
     if webhook.ChannelID != c.Channel {
         log.Printf("Webhook is pointing to wrong channel, updating")
 
-        // Delete incorrect webhook
+        // Clear outdated webhooks
         err = discord.WebhookDelete(webhook_id)
         if err != nil {
             return nil, fmt.Errorf("Failed to delete outdated webhook '%s': %v", webhook_id, err)
+        }
+
+        err = db.RemoveWebhooks(guild_id)
+        if err != nil {
+            return nil, fmt.Errorf("Failed to remove outdated webhooks in database: %v", err)
         }
 
         // Create new webhook in pin channel
