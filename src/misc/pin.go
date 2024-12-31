@@ -108,8 +108,11 @@ func PinMessage(discord *discordgo.Session, guild_id string, msg *discordgo.Mess
         return "", "", fmt.Errorf("Failed to add pin to database: %v", err)
     }
 
-    // Send link to original message
-    params.Content = fmt.Sprintf("-# https://discord.com/channels/%s/%s/%s", guild_id, msg.ChannelID, msg.ID)
+    // Send footer
+    params.Content = fmt.Sprintf(
+        "-# _ _\n-# https://discord.com/channels/%s/%s/%s %s",
+        guild_id, msg.ChannelID, msg.ID, msg.Author.Mention(),
+    )
     _, err = discord.WebhookExecute(webhook.ID, webhook.Token, false, params)
     if err != nil {
         return "", "", fmt.Errorf("Failed to execute webhook: %v", err)
