@@ -38,6 +38,22 @@ func (db *database) AddWebhook(guild_id string, webhook_id string) error {
     return nil
 }
 
+// RemoveWebhook deletes all webhooks associated with a guild_id from the webhooks table.
+func (db *database) RemoveWebhooks(guild_id string) error {
+    // Create guild pins table if it doesn't exist
+    err = db.createWebhookTable()
+    if err != nil {
+        return fmt.Errorf("Failed to create table: %w", err)
+    }
+
+    query := "DELETE FROM webhooks WHERE guild_id = ?"
+    _, err = db.Instance.ExecContext(context.Background(), query, guild_id)
+    if err != nil {
+        return fmt.Errorf("Failed to delete from table: %w", err)
+    }
+    return nil
+}
+
 // GetWebhook retrieves the webhook id for a given guild_id.
 func (db *database) GetWebhook(guild_id string) (string, error) {
     webhook_id := ""
