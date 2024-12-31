@@ -28,12 +28,6 @@ func GetWebhook(discord *discordgo.Session, guild_id string) (*discordgo.Webhook
 
     c := db.GetConfig(guild_id)
 
-    // Check that config's pin channel is valid
-    _, err = discord.Channel(c.Channel)
-    if err != nil {
-        return nil, fmt.Errorf("Failed to retrieve channel with ID '%s': %v", c.Channel, err)
-    }
-
     // Retrieve webhook object, create a new one if it's invalid
     webhook, err := discord.Webhook(webhook_id)
     if err != nil {
@@ -51,11 +45,6 @@ func GetWebhook(discord *discordgo.Session, guild_id string) (*discordgo.Webhook
             return nil, fmt.Errorf("Failed to delete outdated webhook '%s': %v", webhook_id, err)
         }
 
-        err = db.RemoveWebhooks(guild_id)
-        if err != nil {
-            return nil, fmt.Errorf("Failed to remove outdated webhooks in database: %v", err)
-        }
-
         // Create new webhook in pin channel
         return createWebhook(discord, guild_id, c.Channel)
     }
@@ -64,7 +53,7 @@ func GetWebhook(discord *discordgo.Session, guild_id string) (*discordgo.Webhook
     return webhook, nil
 }
 
-// CreateWebhook creats a webhook for a given guild to the given pin channel
+// createWebhook creates a webhook for a given guild to the given pin channel
 // Returns the webhook's ID if successful
 func createWebhook(discord *discordgo.Session, guild_id string, channel_id string) (*discordgo.Webhook, error) {
     db, err := database.Connect()
@@ -78,7 +67,7 @@ func createWebhook(discord *discordgo.Session, guild_id string, channel_id strin
         return nil, fmt.Errorf("Failed to create webhook in channel '%s': %v", channel_id, err)
     }
 
-    err = db.AddWebhook(guild_id, webhook.ID)
+    err = db.SetWebhook(guild_id, webhook.ID)
     if err != nil {
         return nil, fmt.Errorf("Failed to add webhook to database: %v", err)
     }
