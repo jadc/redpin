@@ -11,7 +11,7 @@ func (db *database) createWebhookTable() error {
         CREATE TABLE IF NOT EXISTS webhooks (
             guild_id TEXT NOT NULL,
             webhook_id TEXT NOT NULL,
-            PRIMARY KEY (guild_id, webhook_id)
+            PRIMARY KEY (guild_id)
         )
     `
     _, err = db.Instance.ExecContext(context.Background(), query)
@@ -21,35 +21,22 @@ func (db *database) createWebhookTable() error {
     return nil
 }
 
-// AddWebhook inserts a guild_id -> webhook_id pair into the webhooks table.
-func (db *database) AddWebhook(guild_id string, webhook_id string) error {
+// SetWebhook creates/updates a guild_id -> webhook_id pair into the webhooks table.
+func (db *database) SetWebhook(guild_id string, webhook_id string) error {
     // Create guild pins table if it doesn't exist
     err = db.createWebhookTable()
     if err != nil {
         return fmt.Errorf("Failed to create table: %w", err)
     }
 
-    // Insert row
-    query := "INSERT INTO webhooks (guild_id, webhook_id) VALUES (?, ?)"
-    _, err = db.Instance.ExecContext(context.Background(), query, guild_id, webhook_id)
+    // Create or update row
+    query := `
+        INSERT INTO webhooks (guild_id, webhook_id) VALUES (?, ?)
+        ON CONFLICT (guild_id) DO UPDATE SET webhook_id = ?
+    `
+    _, err = db.Instance.ExecContext(context.Background(), query, guild_id, webhook_id, webhook_id)
     if err != nil {
         return fmt.Errorf("Failed to insert into table: %w", err)
-    }
-    return nil
-}
-
-// RemoveWebhook deletes all webhooks associated with a guild_id from the webhooks table.
-func (db *database) RemoveWebhooks(guild_id string) error {
-    // Create guild pins table if it doesn't exist
-    err = db.createWebhookTable()
-    if err != nil {
-        return fmt.Errorf("Failed to create table: %w", err)
-    }
-
-    query := "DELETE FROM webhooks WHERE guild_id = ?"
-    _, err = db.Instance.ExecContext(context.Background(), query, guild_id)
-    if err != nil {
-        return fmt.Errorf("Failed to delete from table: %w", err)
     }
     return nil
 }
