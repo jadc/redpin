@@ -68,12 +68,6 @@ func PinMessage(discord *discordgo.Session, guild_id string, msg *discordgo.Mess
         params.AvatarURL = msg.Author.AvatarURL("")
     }
 
-    // Create copy of message as webhook
-    p, err := cloneParams(discord, guild_id, params, msg)
-    if err != nil {
-        return "", "", fmt.Errorf("Failed to clone message: %v", err)
-    }
-
     // If the message being pinned is a reply, pin the referenced message first
     if msg.MessageReference != nil {
         // Get the referenced message
@@ -96,17 +90,28 @@ func PinMessage(discord *discordgo.Session, guild_id string, msg *discordgo.Mess
         }
     }
 
+    // Create copy of message as webhook
+    p := *params
+    p.Content = msg.Content
+    p.Components = msg.Components
+    p.Embeds = msg.Embeds
+
+    // Append as many attachments to webhook that can fit
+    if len(msg.Attachments) > 0 {
+        // Get file upload size limit of guild
+        limit, err := sizeLimit(discord, guild_id)
+        if err != nil {
+            return "", "", err
+        }
+    }
+
     // Send the webhook copy to the pin channel
-    pin_msg, err := discord.WebhookExecute(webhook.ID, webhook.Token, true, p)
+    pin_msg, err := discord.WebhookExecute(webhook.ID, webhook.Token, true, &p)
     if err != nil {
         return "", "", fmt.Errorf("Failed to execute webhook: %v", err)
     }
 
-    // Add pin message to database
-    err = db.AddPin(guild_id, c.Channel, msg.ID, pin_msg.ID)
-    if err != nil {
-        return "", "", fmt.Errorf("Failed to add pin to database: %v", err)
-    }
+    // Send any remaining attachments in new messages
 
     // Send footer
     params.Content = fmt.Sprintf(
@@ -121,6 +126,12 @@ func PinMessage(discord *discordgo.Session, guild_id string, msg *discordgo.Mess
     // Copy reactions from original message if possible
     for _, r := range msg.Reactions {
         _ = discord.MessageReactionAdd(pin_msg.ChannelID, pin_msg.ID, r.Emoji.APIName())
+    }
+
+    // Add pin message to database
+    err = db.AddPin(guild_id, c.Channel, msg.ID, pin_msg.ID)
+    if err != nil {
+        return "", "", fmt.Errorf("Failed to add pin to database: %v", err)
     }
 
     return pin_msg.ChannelID, pin_msg.ID, nil

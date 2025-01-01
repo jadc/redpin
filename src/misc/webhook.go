@@ -105,15 +105,9 @@ func createWebhook(discord *discordgo.Session, guild_id string, channel_id strin
     return webhook, nil
 }
 
-// cloneParams clones a message into an equivalent a webhook params object
-func cloneParams(discord *discordgo.Session, guild_id string, params *discordgo.WebhookParams, msg *discordgo.Message) (*discordgo.WebhookParams, error) {
-    // Create copy of given params (shallow is enough)
-    p := *params
-
-    // Copy all contents that match
-    p.Content = msg.Content
-    p.Components = msg.Components
-    p.Embeds = msg.Embeds
+// splitFiles splits a list of attachments into multiple messages that are under the size limit
+func splitFiles(attachments []*discordgo.MessageAttachment, size_limit int) (*[]discordgo.Message, error) {
+    file_sets := make([][]*discordgo.File, 0)
 
     // Reupload attachments if there are any
     for _, a := range msg.Attachments {
@@ -134,4 +128,25 @@ func cloneParams(discord *discordgo.Session, guild_id string, params *discordgo.
     }
 
     return &p, nil
+}
+
+// sizeLimit returns the maximum size (in bytes) of a message that can be sent in a guild
+func sizeLimit(discord *discordgo.Session, guild_id string) (int, error) {
+    // Get guild object
+    guild, err := discord.Guild(guild_id)
+    if err != nil {
+        return 0, fmt.Errorf("Failed to retrieve guild '%s': %v", guild_id, err)
+    }
+
+    var mb int
+    switch guild.PremiumTier {
+        case 3:
+            mb = 100
+        case 2:
+            mb = 50
+        default:
+            mb = 25
+    }
+
+    return mb * 1024 * 1024, nil
 }
