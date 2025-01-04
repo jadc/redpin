@@ -6,9 +6,14 @@ import (
     "log"
     "net/http"
     "time"
+    "encoding/json"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/jadc/redpin/database"
+)
+
+var (
+    MERGE_TIME int64 = 10*60*1000
 )
 
 // Hashmap of webhook id -> last used timestamp
@@ -16,7 +21,6 @@ import (
 // Technically, if the bot is restarted, timestamps are reset and
 // messages may get merged, but this is a very unlikely scenario
 var timestamps = make(map[string]int64)
-var MERGE_TIME int64 = 10*60*1000
 
 // GetWebhook gets the webhook for a given guild
 // Returns the webhook's ID (existing or new) if successful
@@ -35,6 +39,12 @@ func GetWebhook(discord *discordgo.Session, guild_id string) (*discordgo.Webhook
     }
 
     c := db.GetConfig(guild_id)
+
+    // Create new webhook if one does not exist already
+    if err == sql.ErrNoRows || webhook_id == "" {
+        log.Printf("Creating new webhook for guild '%s'", guild_id)
+        return createWebhook(discord, guild_id, c.Channel)
+    }
 
     // Discard current webhook if it is too young
     if timestamp, ok := timestamps[webhook_id]; ok {
@@ -105,29 +115,61 @@ func createWebhook(discord *discordgo.Session, guild_id string, channel_id strin
     return webhook, nil
 }
 
-// splitFiles splits a list of attachments into multiple messages that are under the size limit
-func splitFiles(attachments []*discordgo.MessageAttachment, size_limit int) (*[]discordgo.Message, error) {
-    file_sets := make([][]*discordgo.File, 0)
+// splitFiles splits a list of attachments into lists of files that are each under the size limit
+func splitFiles(attachments []*discordgo.MessageAttachment, size_limit int) ([][]*discordgo.File, []string, error) {
+    // Preallocate space based on attachments
+    total_size := 0
+    total_links := 0
+    for _, a := range attachments {
+        if a.Size >= 0 || a.Size < size_limit {
+            total_size += a.Size
+        } else {
+            total_links += 1
+        }
+    }
+    files := make([][]*discordgo.File, total_size / size_limit + 1)
+    links := make([]string, 0, total_links)
+
+    log.Print("Message requires ", len(files), " files and ", len(links), " links")
 
     // Reupload attachments if there are any
-    for _, a := range msg.Attachments {
-        // Download attachment
-        file, err := http.DefaultClient.Get(a.URL)
+    size_so_far := 0
+    for _, a := range attachments {
+        // If an attachment is too big to fit in even one message, just copy URL to it
+        if a.Size < 0 || a.Size > size_limit {
+            links = append(links, a.URL)
+            continue
+        }
+
+        // Reupload attachment if it has a valid size
+        data, err := http.DefaultClient.Get(a.URL)
         if err != nil {
-            file, err = http.DefaultClient.Get(a.ProxyURL)
+            data, err = http.DefaultClient.Get(a.ProxyURL)
             if err != nil {
-                return nil, fmt.Errorf("Failed to download attachment '%s': %v", a.URL, err)
+                log.Print("Failed to download attachment '%s': %v", a.URL, err)
+                links = append(links, a.URL)
             }
         }
 
-        // Reupload attachment
-        p.Files = append(p.Files, &discordgo.File{
+        // Create file with attachment data
+        file := &discordgo.File{
             Name: a.Filename,
-            Reader: file.Body,
-        })
+            ContentType: a.ContentType,
+            Reader: data.Body,
+        }
+
+        // Add file to appropriate set
+        size_so_far += a.Size
+        i := size_so_far / size_limit
+        files[i] = append(files[i], file)
     }
 
-    return &p, nil
+    j, _ := json.MarshalIndent(files, "", "  ")
+    log.Print(string(j))
+    j, _ = json.MarshalIndent(links, "", "  ")
+    log.Print(string(j))
+
+    return files, links, nil
 }
 
 // sizeLimit returns the maximum size (in bytes) of a message that can be sent in a guild

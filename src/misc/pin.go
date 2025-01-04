@@ -30,7 +30,7 @@ func PinMessage(discord *discordgo.Session, guild_id string, msg *discordgo.Mess
     // Return existing pin_id if it exists
     if len(pin_channel_id) > 0 && len(pin_id) > 0 {
         log.Printf("Message with ID %s is already pinned", msg.ID)
-        return pin_channel_id, pin_id, nil
+        // return pin_channel_id, pin_id, nil
     }
 
     // Get config
@@ -97,12 +97,24 @@ func PinMessage(discord *discordgo.Session, guild_id string, msg *discordgo.Mess
     p.Embeds = msg.Embeds
 
     // Append as many attachments to webhook that can fit
+    var files [][]*discordgo.File
+    var links []string
     if len(msg.Attachments) > 0 {
         // Get file upload size limit of guild
         limit, err := sizeLimit(discord, guild_id)
         if err != nil {
             return "", "", err
         }
+
+        // Split files based on this size limit
+        files, links, err := splitFiles(msg.Attachments, limit)
+        if err != nil {
+            return "", "", err
+        }
+
+        // Attach first set of files to pin message
+        p.Files = files[0]
+        files = files[1:]
     }
 
     // Send the webhook copy to the pin channel
@@ -111,7 +123,26 @@ func PinMessage(discord *discordgo.Session, guild_id string, msg *discordgo.Mess
         return "", "", fmt.Errorf("Failed to execute webhook: %v", err)
     }
 
-    // Send any remaining attachments in new messages
+    // Send any remaining attachments/links in new messages
+    for i, f := range files {
+        // Attach files
+        params.Files = f
+
+        // Attach links
+        var msg strings.Builder
+        i *= MAX_LINKS_PER_MSG
+        for j := i; j < len(links) && j < i + MAX_LINKS_PER_MSG; j++ {
+            msg.WriteString(links[j])
+            msg.WriteString("\n")
+        }
+        params.Content = msg.String()
+
+        _, err := discord.WebhookExecute(webhook.ID, webhook.Token, false, params)
+        if err != nil {
+            return "", "", fmt.Errorf("Failed to execute webhook: %v", err)
+        }
+    }
+    params.Files = nil
 
     // Send footer
     params.Content = fmt.Sprintf(
