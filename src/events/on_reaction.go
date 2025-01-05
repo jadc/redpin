@@ -53,8 +53,15 @@ func onReaction(discord *discordgo.Session, event *discordgo.MessageReactionAdd)
         return
     }
 
+    // Get the current webhook
+    webhook, err := misc.GetWebhook(discord, event.GuildID)
+    if err != nil {
+        log.Printf("Failed to retrieve webhook: %v", err)
+        return
+    }
+
     // If reaching this far, pin the message
-    _, _, err = misc.PinMessage(discord, event.GuildID, message)
+    _, _, err = misc.PinMessage(discord, webhook, message)
     if err != nil {
         log.Printf("Failed to pin message with ID %s: %v", message.ID, err)
     }
