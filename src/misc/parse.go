@@ -8,14 +8,16 @@ import (
 	"github.com/bwmarrin/discordgo"
 )
 
-var discord_emoji = regexp.MustCompile(`<(a)?:[\w]+:(\d+)>`)
+var (
+    EMOJI = regexp.MustCompile(`<(a)?:[\w]+:(\d+)>`)
+)
 
 // ExtractEmojis returns an identifier for each emoji in the given string
 func ExtractEmojis(text string) []string {
     var res []string
 
     // Extract and append any Discord emojis to result
-    if matches := discord_emoji.FindAllStringSubmatch(text, -1); matches != nil {
+    if matches := EMOJI.FindAllStringSubmatch(text, -1); matches != nil {
         for _, match := range matches {
             res = append(res, match[2])
         }
