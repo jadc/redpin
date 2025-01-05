@@ -9,11 +9,19 @@ import (
 	"github.com/jadc/redpin/database"
 )
 
+// Hashset of valid message types
+var VALID_MSG_TYPE = map[discordgo.MessageType]struct{}{
+    discordgo.MessageTypeDefault: {},
+    discordgo.MessageTypeReply: {},
+    discordgo.MessageTypeChatInputCommand: {},
+    discordgo.MessageTypeThreadStarterMessage: {},
+}
+
 // PinMessage pins a message, forwarding it to the pin channel
 // Returns the used pin channel ID and pin message's ID if successful
 func PinMessage(discord *discordgo.Session, webhook *discordgo.Webhook, msg *discordgo.Message) (string, string, error) {
     // Skip messages that cannot feasibly be pinned
-    if msg.Type != discordgo.MessageTypeDefault && msg.Type != discordgo.MessageTypeReply {
+    if _, ok := VALID_MSG_TYPE[msg.Type]; !ok {
         return "", "", fmt.Errorf("This type of message cannot be pinned")
     }
 
