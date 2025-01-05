@@ -98,7 +98,7 @@ func PinMessage(discord *discordgo.Session, webhook *discordgo.Webhook, msg *dis
 
         // Send link to pinned referenced message
         params.Content = fmt.Sprintf("-# ╰ Reply to https://discord.com/channels/%s/%s/%s", webhook.GuildID, ref_pin_channel_id, ref_pin_msg_id)
-        _, err = discord.WebhookExecute(webhook.ID, webhook.Token, false, params)
+        _, err = discord.WebhookExecute(webhook.ID, webhook.Token, true, params)
         if err != nil {
             log.Printf("Failed to send link to pinned referenced message of message '%s': %v", msg.ID, err)
         }
@@ -112,10 +112,10 @@ func PinMessage(discord *discordgo.Session, webhook *discordgo.Webhook, msg *dis
 
     // Send footer
     params.Content = fmt.Sprintf(
-        "-# _ _\n-# https://discord.com/channels/%s/%s/%s %s",
+        "-# https://discord.com/channels/%s/%s/%s %s",
         webhook.GuildID, msg.ChannelID, msg.ID, msg.Author.Mention(),
     )
-    _, err = discord.WebhookExecute(webhook.ID, webhook.Token, false, params)
+    _, err = discord.WebhookExecute(webhook.ID, webhook.Token, true, params)
     if err != nil {
         return "", "", fmt.Errorf("Failed to execute webhook: %v", err)
     }
