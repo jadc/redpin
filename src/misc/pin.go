@@ -12,6 +12,11 @@ import (
 // PinMessage pins a message, forwarding it to the pin channel
 // Returns the used pin channel ID and pin message's ID if successful
 func PinMessage(discord *discordgo.Session, guild_id string, msg *discordgo.Message) (string, string, error) {
+    // Skip messages that cannot feasibly be pinned
+    if msg.Type != discordgo.MessageTypeDefault && msg.Type != discordgo.MessageTypeReply {
+        return "", "", fmt.Errorf("This type of message cannot be pinned")
+    }
+
     log.Printf("Pinning message '%s' in guild '%s'", msg.ID, guild_id)
 
     db, err := database.Connect()
