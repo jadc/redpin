@@ -25,6 +25,7 @@ This repository contains the modern rewrite and expansion of **redpin** in the G
         - [x] Allow pins from NSFW channels
         - [x] Allow self-pins
         - [x] Select which emojis pin messages
+    - [x] Pins preserve attachments when possible
 - [ ] Implement nice-to-haves
     - [ ] Emoji-themed pin channels
     - [ ] Per-user leaderboard for how many of their messages have been pinned (toggleable)
