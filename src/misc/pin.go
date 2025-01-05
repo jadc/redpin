@@ -30,7 +30,7 @@ func PinMessage(discord *discordgo.Session, guild_id string, msg *discordgo.Mess
     // Return existing pin_id if it exists
     if len(pin_channel_id) > 0 && len(pin_id) > 0 {
         log.Printf("Message with ID %s is already pinned", msg.ID)
-        // return pin_channel_id, pin_id, nil
+        return pin_channel_id, pin_id, nil
     }
 
     // Get config

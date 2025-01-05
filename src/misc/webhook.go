@@ -6,6 +6,7 @@ import (
     "log"
     "net/http"
     "time"
+    "strings"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/jadc/redpin/database"
@@ -119,6 +120,9 @@ func createWebhook(discord *discordgo.Session, guild_id string, channel_id strin
 // cloneMessage recreates the given message into the given webhook with the given base parameters
 // Returns the message object that the webhook sent (not including header/footer/attachment messages)
 func cloneMessage(discord *discordgo.Session, msg *discordgo.Message, webhook *discordgo.Webhook, base *discordgo.WebhookParams) (*discordgo.Message, error) {
+    var pin_msg *discordgo.Message
+    skip := false
+
     // Create copy of message as webhook parameters
     params := *base
     params.Content = msg.Content
@@ -126,7 +130,9 @@ func cloneMessage(discord *discordgo.Session, msg *discordgo.Message, webhook *d
     params.Embeds = msg.Embeds
 
     // Append as many attachments to webhook that can fit
-    var msgs []*discordgo.WebhookParams
+    var file_sets [][]*discordgo.File
+    var link_sets [][]string
+    i, j := 0, 0
 
     if len(msg.Attachments) > 0 {
         // Get file upload size limit of guild
@@ -136,47 +142,89 @@ func cloneMessage(discord *discordgo.Session, msg *discordgo.Message, webhook *d
         }
 
         // Split files based on this size limit
-        msgs, err = splitAttachments(base, msg.Attachments, size_limit)
-        if err != nil {
-            return nil, err
-        }
+        file_sets, link_sets = splitAttachments(msg.Attachments, size_limit)
 
-        // Attach first set of files to pin message
-        // params.Files = msgs[0].Files
-        // msgs = files[1:]
+        // Messages must either have content or files to be sent, otherwise Discord errors
+        // First, attempt to attach first set of files (not links) to pin message
+        if len(file_sets) > 0 && len(file_sets[0]) > 0 {
+            params.Files = file_sets[0]
+            i += 1
+        } else {
+            if params.Content == "" {
+                if len(link_sets) > 0 && len(link_sets[0]) > 0 {
+                    // If message content is empty, try to add first link set
+                    params.Content = strings.Join(link_sets[0], "\n")
+                    j += 1
+                } else {
+                    // If there are no link sets, skip the pin message
+                    skip = true
+                }
+            }
+        }
     }
 
     // Send the webhook copy to the pin channel
-    pin_msg, err := discord.WebhookExecute(webhook.ID, webhook.Token, true, &params)
-    if err != nil {
-        return nil, err
-    }
-
-    // Send any attachment messages afterwards
-    for _, msg := range msgs {
-        _, err := discord.WebhookExecute(webhook.ID, webhook.Token, true, msg)
+    if !skip {
+        var err error
+        pin_msg, err = discord.WebhookExecute(webhook.ID, webhook.Token, true, &params)
         if err != nil {
             return nil, err
         }
     }
 
-    return pin_msg, err
+    // Send any attachment messages afterwards
+    att := *base
+    for {
+        // Pop from files
+        if i < len(file_sets) {
+            att.Files = file_sets[i]
+            i++
+        } else {
+            att.Files = nil
+        }
+
+        // Pop from links
+        if j < len(link_sets) {
+            att.Content = strings.Join(link_sets[j], "\n")
+            j++
+        } else {
+            att.Content = ""
+        }
+
+        // Send attachment message
+        if att.Files != nil || att.Content != "" {
+            att_msg, err := discord.WebhookExecute(webhook.ID, webhook.Token, true, &att)
+            if err != nil {
+                return nil, err
+            }
+
+            // If pin message was skipped, set pin message to first attachment message
+            if skip {
+                pin_msg = att_msg
+                skip = false
+            }
+        } else {
+            break
+        }
+    }
+
+    return pin_msg, nil
 }
 
-// splitAttachments splits a list of attachments into multiple messages (as webhook params) under the size limit
-func splitAttachments(base *discordgo.WebhookParams, attachments []*discordgo.MessageAttachment, size_limit int) ([]*discordgo.WebhookParams, error) {
-    var msgs []*discordgo.WebhookParams
+// splitAttachments splits a list of attachments into list of lists of attachments, each sublist under the size limit
+func splitAttachments(attachments []*discordgo.MessageAttachment, size_limit int) ([][]*discordgo.File, [][]string) {
     var file_sets [][]*discordgo.File
     var link_sets [][]string
 
-    current_files := make([]*discordgo.File, 0, MAX_FILES)
-    current_links := make([]string, 0, MAX_LINKS)
-    current_size := 0
+    files := make([]*discordgo.File, 0, MAX_FILES)
+    links := make([]string, 0, MAX_LINKS)
+    size := 0
+
     for _, a := range attachments {
         // Split links if getting too big
-        if len(current_links) >= MAX_LINKS {
-            link_sets = append(link_sets, current_links)
-            current_links = make([]string, 0, MAX_LINKS)
+        if len(links) >= MAX_LINKS {
+            link_sets = append(link_sets, links)
+            links = make([]string, 0, MAX_LINKS)
         }
 
         if a.Size > 0 && a.Size < size_limit {
@@ -186,15 +234,15 @@ func splitAttachments(base *discordgo.WebhookParams, attachments []*discordgo.Me
                 data, err = http.DefaultClient.Get(a.ProxyURL)
                 if err != nil {
                     // Append link instead if downloading attachment fails
-                    current_links = append(current_links, a.URL)
+                    links = append(links, a.URL)
                     continue
                 }
             }
 
             // Split files if getting too big
-            if len(current_files) >= MAX_FILES || current_size + a.Size >= size_limit {
-                file_sets = append(file_sets, current_files)
-                current_files = make([]*discordgo.File, 0, MAX_FILES)
+            if len(files) >= MAX_FILES || size + a.Size >= size_limit {
+                file_sets = append(file_sets, files)
+                files = make([]*discordgo.File, 0, MAX_FILES)
             }
 
             // Create file with attachment data
@@ -203,22 +251,19 @@ func splitAttachments(base *discordgo.WebhookParams, attachments []*discordgo.Me
                 ContentType: a.ContentType,
                 Reader: data.Body,
             }
-            current_files = append(current_files, file)
-            current_size += a.Size
+            files = append(files, file)
+            size += a.Size
         } else {
             // If an attachment is too big to fit in even one message, just append link to it
-            current_links = append(current_links, a.URL)
+            links = append(links, a.URL)
         }
     }
 
     // Append any remaining files/links
-    file_sets = append(file_sets, current_files)
-    link_sets = append(link_sets, current_links)
+    file_sets = append(file_sets, files)
+    link_sets = append(link_sets, links)
 
-    log.Print("FILES: ", file_sets)
-    log.Print("LINKS: ", link_sets)
-
-    return msgs, nil
+    return file_sets, link_sets
 }
 
 // sizeLimit returns the maximum size (in bytes) of a message that can be sent in a guild
