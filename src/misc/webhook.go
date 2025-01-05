@@ -6,7 +6,6 @@ import (
     "log"
     "net/http"
     "time"
-    "encoding/json"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/jadc/redpin/database"
@@ -14,6 +13,8 @@ import (
 
 var (
     MERGE_TIME int64 = 10*60*1000
+    MAX_FILES int = 10
+    MAX_LINKS int = 5
 )
 
 // Hashmap of webhook id -> last used timestamp
@@ -115,61 +116,109 @@ func createWebhook(discord *discordgo.Session, guild_id string, channel_id strin
     return webhook, nil
 }
 
-// splitFiles splits a list of attachments into lists of files that are each under the size limit
-func splitFiles(attachments []*discordgo.MessageAttachment, size_limit int) ([][]*discordgo.File, []string, error) {
-    // Preallocate space based on attachments
-    total_size := 0
-    total_links := 0
-    for _, a := range attachments {
-        if a.Size >= 0 || a.Size < size_limit {
-            total_size += a.Size
-        } else {
-            total_links += 1
-        }
-    }
-    files := make([][]*discordgo.File, total_size / size_limit + 1)
-    links := make([]string, 0, total_links)
+// cloneMessage recreates the given message into the given webhook with the given base parameters
+// Returns the message object that the webhook sent (not including header/footer/attachment messages)
+func cloneMessage(discord *discordgo.Session, msg *discordgo.Message, webhook *discordgo.Webhook, base *discordgo.WebhookParams) (*discordgo.Message, error) {
+    // Create copy of message as webhook parameters
+    params := *base
+    params.Content = msg.Content
+    params.Components = msg.Components
+    params.Embeds = msg.Embeds
 
-    log.Print("Message requires ", len(files), " files and ", len(links), " links")
+    // Append as many attachments to webhook that can fit
+    var msgs []*discordgo.WebhookParams
 
-    // Reupload attachments if there are any
-    size_so_far := 0
-    for _, a := range attachments {
-        // If an attachment is too big to fit in even one message, just copy URL to it
-        if a.Size < 0 || a.Size > size_limit {
-            links = append(links, a.URL)
-            continue
-        }
-
-        // Reupload attachment if it has a valid size
-        data, err := http.DefaultClient.Get(a.URL)
+    if len(msg.Attachments) > 0 {
+        // Get file upload size limit of guild
+        size_limit, err := sizeLimit(discord, webhook.GuildID)
         if err != nil {
-            data, err = http.DefaultClient.Get(a.ProxyURL)
-            if err != nil {
-                log.Print("Failed to download attachment '%s': %v", a.URL, err)
-                links = append(links, a.URL)
-            }
+            return nil, err
         }
 
-        // Create file with attachment data
-        file := &discordgo.File{
-            Name: a.Filename,
-            ContentType: a.ContentType,
-            Reader: data.Body,
+        // Split files based on this size limit
+        msgs, err = splitAttachments(base, msg.Attachments, size_limit)
+        if err != nil {
+            return nil, err
         }
 
-        // Add file to appropriate set
-        size_so_far += a.Size
-        i := size_so_far / size_limit
-        files[i] = append(files[i], file)
+        // Attach first set of files to pin message
+        // params.Files = msgs[0].Files
+        // msgs = files[1:]
     }
 
-    j, _ := json.MarshalIndent(files, "", "  ")
-    log.Print(string(j))
-    j, _ = json.MarshalIndent(links, "", "  ")
-    log.Print(string(j))
+    // Send the webhook copy to the pin channel
+    pin_msg, err := discord.WebhookExecute(webhook.ID, webhook.Token, true, &params)
+    if err != nil {
+        return nil, err
+    }
 
-    return files, links, nil
+    // Send any attachment messages afterwards
+    for _, msg := range msgs {
+        _, err := discord.WebhookExecute(webhook.ID, webhook.Token, true, msg)
+        if err != nil {
+            return nil, err
+        }
+    }
+
+    return pin_msg, err
+}
+
+// splitAttachments splits a list of attachments into multiple messages (as webhook params) under the size limit
+func splitAttachments(base *discordgo.WebhookParams, attachments []*discordgo.MessageAttachment, size_limit int) ([]*discordgo.WebhookParams, error) {
+    var msgs []*discordgo.WebhookParams
+    var file_sets [][]*discordgo.File
+    var link_sets [][]string
+
+    current_files := make([]*discordgo.File, 0, MAX_FILES)
+    current_links := make([]string, 0, MAX_LINKS)
+    current_size := 0
+    for _, a := range attachments {
+        // Split links if getting too big
+        if len(current_links) >= MAX_LINKS {
+            link_sets = append(link_sets, current_links)
+            current_links = make([]string, 0, MAX_LINKS)
+        }
+
+        if a.Size > 0 && a.Size < size_limit {
+            // Download attachment
+            data, err := http.DefaultClient.Get(a.URL)
+            if err != nil {
+                data, err = http.DefaultClient.Get(a.ProxyURL)
+                if err != nil {
+                    // Append link instead if downloading attachment fails
+                    current_links = append(current_links, a.URL)
+                    continue
+                }
+            }
+
+            // Split files if getting too big
+            if len(current_files) >= MAX_FILES || current_size + a.Size >= size_limit {
+                file_sets = append(file_sets, current_files)
+                current_files = make([]*discordgo.File, 0, MAX_FILES)
+            }
+
+            // Create file with attachment data
+            file := &discordgo.File{
+                Name: a.Filename,
+                ContentType: a.ContentType,
+                Reader: data.Body,
+            }
+            current_files = append(current_files, file)
+            current_size += a.Size
+        } else {
+            // If an attachment is too big to fit in even one message, just append link to it
+            current_links = append(current_links, a.URL)
+        }
+    }
+
+    // Append any remaining files/links
+    file_sets = append(file_sets, current_files)
+    link_sets = append(link_sets, current_links)
+
+    log.Print("FILES: ", file_sets)
+    log.Print("LINKS: ", link_sets)
+
+    return msgs, nil
 }
 
 // sizeLimit returns the maximum size (in bytes) of a message that can be sent in a guild
