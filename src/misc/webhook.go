@@ -127,7 +127,13 @@ func cloneMessage(discord *discordgo.Session, msg *discordgo.Message, webhook *d
     params := *base
     params.Content = msg.Content
     params.Components = msg.Components
-    params.Embeds = msg.Embeds
+
+    // Only copy rich embeds, not embeds from links (Discord will add them itself)
+    for _, e := range msg.Embeds {
+        if e.Type == discordgo.EmbedTypeRich {
+            params.Embeds = append(params.Embeds, e)
+        }
+    }
 
     // Append as many attachments to webhook that can fit
     var file_sets [][]*discordgo.File
