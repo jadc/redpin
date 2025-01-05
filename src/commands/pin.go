@@ -1,8 +1,10 @@
 package commands
 
 import (
-    "github.com/bwmarrin/discordgo"
 	"fmt"
+	"log"
+
+    "github.com/bwmarrin/discordgo"
 	"github.com/jadc/redpin/misc"
 )
 
@@ -26,19 +28,34 @@ func registerPin() error {
 var command_pin = Command{
     metadata: nil,
     handler: func(discord *discordgo.Session, option int, i *discordgo.InteractionCreate) {
+        var resp string
+        var pin_msg_id string
         selected_msg := i.ApplicationCommandData().Resolved.Messages[i.ApplicationCommandData().TargetID]
-        _, _, err := misc.PinMessage(discord, i.GuildID, selected_msg)
 
-        // Only respond if failure
-        if err != nil {
-            discord.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
-                Type: discordgo.InteractionResponseChannelMessageWithSource,
-                Data: &discordgo.InteractionResponseData{
-                    Content: fmt.Sprintf("Failed to pin message: %v", err),
-                    Flags:   discordgo.MessageFlagsEphemeral,
-                },
-            })
+        // Get the current webhook
+        webhook, err := misc.GetWebhook(discord, i.GuildID)
+        if err == nil {
+            _, pin_msg_id, err = misc.PinMessage(discord, webhook, selected_msg)
         }
+
+        if err == nil {
+            if len(pin_msg_id) > 0 {
+                resp = "Message is already pinned."
+            } else {
+                resp = "Message pinned."
+            }
+        } else {
+            log.Printf("Failed to pin message: %v", err)
+            resp = fmt.Sprintf("Message not pinned.\n```%v```", err)
+        }
+
+        discord.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+            Type: discordgo.InteractionResponseChannelMessageWithSource,
+            Data: &discordgo.InteractionResponseData{
+                Content: resp,
+                Flags:   discordgo.MessageFlagsEphemeral,
+            },
+        })
     },
 }
 
