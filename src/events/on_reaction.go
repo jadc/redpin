@@ -119,7 +119,6 @@ func shouldPin(c *database.Config, message *discordgo.Message) bool {
         // TODO: implement this, https://discord.com/developers/docs/resources/message#reaction-object-reaction-structure
 
         // Pin messages with any reactions geq the threshold
-        log.Printf("Reaction count: %d", count)
         if count >= c.Threshold {
             return true
         }
