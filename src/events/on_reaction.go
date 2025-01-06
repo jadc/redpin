@@ -42,11 +42,9 @@ func onReaction(discord *discordgo.Session, event *discordgo.MessageReactionAdd)
     c := db.GetConfig(event.GuildID)
 
     // Ignore reactions in NSFW channels
-    if !c.NSFW {
-        if _, ok := is_nsfw[reaction.ChannelID]; ok {
-            log.Print("Skipping reaction in NSFW channel")
-            return
-        }
+    if !c.NSFW && isNSFW(discord, reaction.ChannelID) {
+        log.Print("Skipping reaction in NSFW channel")
+        return
     }
 
     if !shouldPin(c, message) {
@@ -81,7 +79,6 @@ func onReactionRemove(discord *discordgo.Session, event *discordgo.MessageReacti
                 delete(selfpin[event.MessageID], event.Emoji.ID)
             }
         }
-
     }
     log.Printf("Removed react for message %s, emoji %s", event.MessageID, event.Emoji.ID)
 }
@@ -115,9 +112,6 @@ func shouldPin(c *database.Config, message *discordgo.Message) bool {
             }
         }
 
-        // Apply count multiplier for super reacts
-        // TODO: implement this, https://discord.com/developers/docs/resources/message#reaction-object-reaction-structure
-
         // Pin messages with any reactions geq the threshold
         if count >= c.Threshold {
             return true
@@ -129,28 +123,35 @@ func shouldPin(c *database.Config, message *discordgo.Message) bool {
 
 // Hashset of ids of NSFW channels
 // Cached to reduce API calls
-var is_nsfw = make(map[string]struct{})
+var is_nsfw = make(map[string]bool)
+
+// isNSFW returns whether a channel is NSFW or not, reading from cache when possible
+func isNSFW(discord *discordgo.Session, channel_id string) bool {
+    // Attempt to read from cache
+    if nsfw, ok := is_nsfw[channel_id]; ok {
+        return nsfw
+    }
+
+    // Otherwise, query from Discord
+    channel, _ := discord.Channel(channel_id)
+    is_nsfw[channel_id] = channel.NSFW
+    return is_nsfw[channel_id]
+}
 
 func onReady(discord *discordgo.Session, event *discordgo.Ready) {
     for _, guild := range event.Guilds {
         channels, _ := discord.GuildChannels(guild.ID)
         for _, channel := range channels {
-            if channel.NSFW {
-                is_nsfw[channel.ID] = struct{}{}
-            }
+            is_nsfw[channel.ID] = channel.NSFW
         }
     }
     log.Printf("Cached %d channels' NSFW status", len(is_nsfw))
 }
 
 func onChannelUpdate(discord *discordgo.Session, event *discordgo.ChannelUpdate) {
-    if event.NSFW {
-        is_nsfw[event.Channel.ID] = struct{}{}
-    }
+    is_nsfw[event.Channel.ID] = event.NSFW
 }
 
 func onChannelDelete(discord *discordgo.Session, event *discordgo.ChannelDelete) {
-    if event.NSFW {
-        delete(is_nsfw, event.Channel.ID)
-    }
+    delete(is_nsfw, event.Channel.ID)
 }
