@@ -1,4 +1,4 @@
-name: Build and Test
+name: Run tests
 
 on:
     push:
@@ -10,14 +10,14 @@ jobs:
         runs-on: ubuntu-latest
         steps:
         - uses: actions/checkout@v4
-    
+
         - name: Set up Go
           uses: actions/setup-go@v4
-    
+
         - name: Build
           run: go build -v .
           working-directory: ./src
-    
+
         - name: Test
           run: go test -v .
           working-directory: ./src
