@@ -230,7 +230,7 @@ var command_config_replydepth_min = float64(0)
 var command_config_replydepth = Command{
     metadata: &discordgo.ApplicationCommandOption{
         Name: "replydepth",
-        Description: "Set the maximum number of replys that are pinned when a message is pinned (set to 0 to disable pinning replies)",
+        Description: "Set the max number of replys pinned when a message is pinned (set to 0 to disable pinning replies)",
         Type: discordgo.ApplicationCommandOptionInteger,
         MinValue: &command_config_replydepth_min,
         MaxValue: 10,
