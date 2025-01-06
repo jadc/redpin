@@ -17,9 +17,6 @@ var (
         discordgo.MessageTypeChatInputCommand: {},
         discordgo.MessageTypeThreadStarterMessage: {},
     }
-
-    // Maximum number of messages can be pinned in a reply chain
-    MAX_PIN_DEPTH = 3
 )
 
 // PinMessage pins a message, forwarding it to the pin channel
@@ -87,7 +84,7 @@ func PinMessage(discord *discordgo.Session, webhook *discordgo.Webhook, msg *dis
     }
 
     // If the message being pinned is a reply, pin the referenced message first
-    if msg.MessageReference != nil {
+    if c.ReplyDepth > 0 && msg.MessageReference != nil {
         // Get the referenced message
         ref_msg, err := discord.ChannelMessage(msg.MessageReference.ChannelID, msg.MessageReference.MessageID)
         if err != nil {
@@ -95,7 +92,7 @@ func PinMessage(discord *discordgo.Session, webhook *discordgo.Webhook, msg *dis
         }
 
         // Pin the referenced message if the recursion depth has not been reached
-        if depth + 1 <= MAX_PIN_DEPTH {
+        if depth + 1 <= c.ReplyDepth {
             ref_pin_channel_id, ref_pin_msg_id, err := PinMessage(discord, webhook, ref_msg, depth + 1)
             if err != nil {
                 log.Printf("Failed to pin referenced message of message '%s': %v", msg.ID, err)

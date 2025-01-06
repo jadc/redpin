@@ -12,14 +12,16 @@ type Config struct {
     Threshold   int                 `json:"threshold"`
     NSFW        bool                `json:"nsfw"`
     Selfpin     bool                `json:"selfpin"`
+    ReplyDepth  int                 `json:"replyDepth"`
     Allowlist   map[string]struct{} `json:"allowlist"`
 }
 
 func (c *Config) New() *Config {
     c.Channel = "Set with /redpin channel"
-    c.Threshold = 1
+    c.Threshold = 3
     c.NSFW = false
     c.Selfpin = false
+    c.ReplyDepth = 1
     c.Allowlist = make(map[string]struct{})
     return c
 }
