@@ -25,6 +25,7 @@ func registerConfig() error {
     command_config_threshold.register()
     command_config_nsfw.register()
     command_config_selfpin.register()
+    command_config_replydepth.register()
     command_config_emoji.register()
     index += 1
 
@@ -219,6 +220,46 @@ var command_config_selfpin = Command{
             Type: discordgo.InteractionResponseChannelMessageWithSource,
             Data: &discordgo.InteractionResponseData{
                 Content: resp,
+                Flags:   discordgo.MessageFlagsEphemeral,
+            },
+        })
+    },
+}
+
+var command_config_replydepth_min = float64(0)
+var command_config_replydepth = Command{
+    metadata: &discordgo.ApplicationCommandOption{
+        Name: "replydepth",
+        Description: "Set the maximum number of replys that are pinned when a message is pinned (set to 0 to disable pinning replies)",
+        Type: discordgo.ApplicationCommandOptionInteger,
+        MinValue: &command_config_replydepth_min,
+        MaxValue: 10,
+    },
+    handler: func(discord *discordgo.Session, option int, i *discordgo.InteractionCreate) {
+        // Fetch config for this guild
+        db, err := database.Connect()
+        if err != nil {
+            log.Printf("Failed to connect to database: %v", err)
+            return
+        }
+        c := db.GetConfig(i.GuildID)
+
+        // Write changes to config and save it
+        new_value := int(i.ApplicationCommandData().Options[option].IntValue())
+        if c.ReplyDepth != new_value {
+            c.ReplyDepth = new_value
+            err = db.SaveConfig(i.GuildID, c)
+            if err != nil {
+                log.Printf("Failed to save config: %v", err)
+                return
+            }
+        }
+
+        // Respond with success
+        discord.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
+            Type: discordgo.InteractionResponseChannelMessageWithSource,
+            Data: &discordgo.InteractionResponseData{
+                Content: fmt.Sprintf("Set reply depth to %d", new_value),
                 Flags:   discordgo.MessageFlagsEphemeral,
             },
         })
