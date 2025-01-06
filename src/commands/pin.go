@@ -33,7 +33,7 @@ var command_pin = Command{
         // Get the current webhook
         webhook, err := misc.GetWebhook(discord, i.GuildID)
         if err == nil {
-            _, _, err = misc.PinMessage(discord, webhook, selected_msg)
+            _, _, err = misc.PinMessage(discord, webhook, selected_msg, 0)
         }
 
         resp := "Message pinned."
