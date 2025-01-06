@@ -61,7 +61,7 @@ func onReaction(discord *discordgo.Session, event *discordgo.MessageReactionAdd)
     }
 
     // If reaching this far, pin the message
-    _, _, err = misc.PinMessage(discord, webhook, message)
+    _, _, err = misc.PinMessage(discord, webhook, message, 0)
     if err != nil {
         log.Printf("Failed to pin message with ID %s: %v", message.ID, err)
     }
