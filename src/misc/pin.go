@@ -25,6 +25,14 @@ func PinMessage(discord *discordgo.Session, webhook *discordgo.Webhook, msg *dis
         return "", "", fmt.Errorf("This type of message cannot be pinned")
     }
 
+    // Skip pinning webhooks unless it can be ensured its not a pin
+    if msg.WebhookID != "" {
+        webhook, err := discord.Webhook(msg.WebhookID)
+        if err != nil || webhook == nil || webhook.User == nil || webhook.User.ID == discord.State.User.ID {
+            return "", "", fmt.Errorf("Ambiguous webhooks cannot be pinned")
+        }
+    }
+
     log.Printf("Pinning message '%s' in guild '%s'", msg.ID, webhook.GuildID)
 
     db, err := database.Connect()
@@ -59,16 +67,14 @@ func PinMessage(discord *discordgo.Session, webhook *discordgo.Webhook, msg *dis
     }
     if a := msg.Author; a != nil {
         // Get message author's name
-        name := a.Username
+        params.Username = a.Username
         member, err := discord.GuildMember(webhook.GuildID, a.ID)
         if err == nil {
             if len(member.Nick) > 0 {
-                name = member.Nick
+                params.Username = member.Nick
             } else if len(member.User.GlobalName) > 0 {
-                name = member.User.GlobalName
+                params.Username = member.User.GlobalName
             }
-
-            params.Username = name
         }
 
         // Copy avatar
