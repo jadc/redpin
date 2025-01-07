@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-// createPinTable creates a message_id -> pin_id table for a given guild_id.
+// createPinTable creates a pin table for a given guild_id.
 func (db *database) createPinTable(guild_id string) error {
     query := fmt.Sprintf(`
         CREATE TABLE IF NOT EXISTS pins_%s (
@@ -27,7 +27,7 @@ func (db *database) AddPin(guild_id string, pin_channel_id string, message_id st
     // Create guild pins table if it doesn't exist
     err = db.createPinTable(guild_id)
     if err != nil {
-        return fmt.Errorf("Failed to create table: %w", err)
+        return err
     }
 
     // Insert message
@@ -44,7 +44,7 @@ func (db *database) GetPin(guild_id string, message_id string) (string, string, 
     // Create guild pins table if it doesn't exist
     err = db.createPinTable(guild_id)
     if err != nil {
-        return "", "", fmt.Errorf("Failed to create table: %w", err)
+        return "", "", err
     }
 
     // Retrieve pin_id associated with message_id
