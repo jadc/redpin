@@ -62,7 +62,38 @@ func onReaction(discord *discordgo.Session, event *discordgo.MessageReactionAdd)
     _, _, err = misc.PinMessage(discord, webhook, message, 0)
     if err != nil {
         log.Printf("Failed to pin message with ID %s: %v", message.ID, err)
+        return
     }
+
+    // Get identifier for reaction emoji
+    r := misc.GetEmojiID(&reaction.Emoji)
+
+    // Update stats for author of message getting pinned
+    db.AddStats(event.GuildID, message.Author.ID, r, true)
+
+    // Get all users that reacted to the message with the pinning emoji
+    reactors, err := discord.MessageReactions(event.ChannelID, message.ID, r, 100, "", "")
+    if err != nil {
+        log.Printf("Failed to fetch users that reacted to message '%s': %v", message.ID, err)
+        return
+    }
+
+    // Update stats for everyone who contributed to pinning this message
+    for _, reactor := range reactors {
+        if !c.Selfpin && reactor.ID == message.Author.ID {
+            continue
+        }
+        db.AddStats(event.GuildID, reactor.ID, r, false)
+    }
+
+    // t emp
+    db.AddStats(event.GuildID, "6", r, false)
+    db.AddStats(event.GuildID, "7", r, false)
+
+    t1, _ := db.GetStats(event.GuildID, message.Author.ID, false)
+    log.Print("Given", t1)
+    t2, _ := db.GetStats(event.GuildID, message.Author.ID, true)
+    log.Print("Received", t2)
 }
 
 // Update selfpin map on reaction remove
