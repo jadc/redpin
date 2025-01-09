@@ -43,7 +43,6 @@ func onReaction(discord *discordgo.Session, event *discordgo.MessageReactionAdd)
 
     // Ignore reactions in NSFW channels
     if !c.NSFW && isNSFW(discord, reaction.ChannelID) {
-        log.Print("Skipping reaction in NSFW channel")
         return
     }
 
@@ -69,31 +68,14 @@ func onReaction(discord *discordgo.Session, event *discordgo.MessageReactionAdd)
     r := misc.GetEmojiID(&reaction.Emoji)
 
     // Update stats for author of message getting pinned
-    db.AddStats(event.GuildID, message.Author.ID, r, true)
-
-    // Get all users that reacted to the message with the pinning emoji
-    reactors, err := discord.MessageReactions(event.ChannelID, message.ID, r, 100, "", "")
+    err = db.AddStats(event.GuildID, message.Author.ID, r)
     if err != nil {
-        log.Printf("Failed to fetch users that reacted to message '%s': %v", message.ID, err)
-        return
+        log.Printf("Failed to update statistics: %v", err)
+        //return
     }
 
-    // Update stats for everyone who contributed to pinning this message
-    for _, reactor := range reactors {
-        if !c.Selfpin && reactor.ID == message.Author.ID {
-            continue
-        }
-        db.AddStats(event.GuildID, reactor.ID, r, false)
-    }
-
-    // t emp
-    db.AddStats(event.GuildID, "6", r, false)
-    db.AddStats(event.GuildID, "7", r, false)
-
-    t1, _ := db.GetStats(event.GuildID, message.Author.ID, false)
-    log.Print("Given", t1)
-    t2, _ := db.GetStats(event.GuildID, message.Author.ID, true)
-    log.Print("Received", t2)
+    t, _ := db.GetStats(event.GuildID, message.Author.ID)
+    log.Print("Received: ", t)
 }
 
 // Update selfpin map on reaction remove
@@ -111,14 +93,12 @@ func onReactionRemove(discord *discordgo.Session, event *discordgo.MessageReacti
             }
         }
     }
-    log.Printf("Removed react for message %s, emoji %s", event.MessageID, event.Emoji.ID)
 }
 
 // Update selfpin map on message delete
 func onMessageDelete(discord *discordgo.Session, event *discordgo.MessageDelete) {
     if selfpin[event.Message.ID] != nil {
         delete(selfpin, event.Message.ID)
-        log.Printf("Deleted reaction count for message %s", event.Message.ID)
     }
 }
 
@@ -129,7 +109,6 @@ func shouldPin(c *database.Config, message *discordgo.Message) bool {
         if len(c.Allowlist) > 0 {
             // Ignore reactions not in the allowlist hashset
             if _, ok := c.Allowlist[misc.GetEmojiID(r.Emoji)]; !ok {
-                log.Print("Skipping reaction not in allowlist")
                 continue
             }
         }
