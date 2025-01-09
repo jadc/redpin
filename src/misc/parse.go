@@ -48,5 +48,5 @@ func GetEmojiID(emoji *discordgo.Emoji) string {
 
 // GetMessageLink returns a URL for the given message
 func GetMessageLink(guild_id string, channel_id string, message_id string) string {
-    return fmt.Sprintf("https://discord.com/channels/%s/%s/%s", guild_id, channel_id, message_id)
+    return fmt.Sprintf("%schannels/%s/%s/%s", discordgo.EndpointDiscord, guild_id, channel_id, message_id)
 }
