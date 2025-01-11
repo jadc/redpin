@@ -15,7 +15,7 @@ func ExtractEmojis(text string) []string {
     // Extract and append any Discord emojis to result
     temp := &discordgo.Message{ Content: text }
     for _, match := range temp.GetCustomEmojis() {
-        res = append(res, match.MessageFormat())
+        res = append(res, match.APIName())
     }
 
     // Extract and append any unicode emojis to result
