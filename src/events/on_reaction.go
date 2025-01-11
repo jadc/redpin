@@ -102,7 +102,7 @@ func shouldPin(c *database.Config, message *discordgo.Message) bool {
         // If allowlist is non-empty, only then filter emojis
         if len(c.Allowlist) > 0 {
             // Ignore reactions not in the allowlist hashset
-            if _, ok := c.Allowlist[r.Emoji.MessageFormat()]; !ok {
+            if _, ok := c.Allowlist[r.Emoji.APIName()]; !ok {
                 continue
             }
         }
