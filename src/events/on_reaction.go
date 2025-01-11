@@ -64,18 +64,12 @@ func onReaction(discord *discordgo.Session, event *discordgo.MessageReactionAdd)
         return
     }
 
-    // Get identifier for reaction emoji
-    r := misc.GetEmojiID(&reaction.Emoji)
-
     // Update stats for author of message getting pinned
-    err = db.AddStats(event.GuildID, message.Author.ID, r)
+    err = db.AddStats(event.GuildID, message.Author.ID, reaction.Emoji.MessageFormat())
     if err != nil {
         log.Printf("Failed to update statistics: %v", err)
-        //return
+        return
     }
-
-    t, _ := db.GetStats(event.GuildID, message.Author.ID)
-    log.Print("Received: ", t)
 }
 
 // Update selfpin map on reaction remove
@@ -108,7 +102,7 @@ func shouldPin(c *database.Config, message *discordgo.Message) bool {
         // If allowlist is non-empty, only then filter emojis
         if len(c.Allowlist) > 0 {
             // Ignore reactions not in the allowlist hashset
-            if _, ok := c.Allowlist[misc.GetEmojiID(r.Emoji)]; !ok {
+            if _, ok := c.Allowlist[r.Emoji.MessageFormat()]; !ok {
                 continue
             }
         }
