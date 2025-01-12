@@ -1,15 +1,11 @@
 package misc
 
 import (
-	"regexp"
+	"fmt"
 	"slices"
 
 	emoji "github.com/Andrew-M-C/go.emoji"
 	"github.com/bwmarrin/discordgo"
-)
-
-var (
-    EMOJI = regexp.MustCompile(`<(a)?:[\w]+:(\d+)>`)
 )
 
 // ExtractEmojis returns an identifier for each emoji in the given string
@@ -17,10 +13,9 @@ func ExtractEmojis(text string) []string {
     var res []string
 
     // Extract and append any Discord emojis to result
-    if matches := EMOJI.FindAllStringSubmatch(text, -1); matches != nil {
-        for _, match := range matches {
-            res = append(res, match[2])
-        }
+    temp := &discordgo.Message{ Content: text }
+    for _, match := range temp.GetCustomEmojis() {
+        res = append(res, match.APIName())
     }
 
     // Extract and append any unicode emojis to result
@@ -35,12 +30,22 @@ func ExtractEmojis(text string) []string {
     return slices.Compact(res)
 }
 
-// GetEmojiID returns an identifier for the given emoji
-// If the emoji is a custom Discord emoji, the identifier is the emoji ID
-// If the emoji is a unicode emoji, the identifier is the emoji itself
-func GetEmojiID(emoji *discordgo.Emoji) string {
-    if len(emoji.ID) == 0 {
-        return emoji.Name
+// GetMessageLink returns a URL for the given message
+func GetMessageLink(guild_id string, channel_id string, message_id string) string {
+    return fmt.Sprintf("%schannels/%s/%s/%s", discordgo.EndpointDiscord, guild_id, channel_id, message_id)
+}
+
+// GetName returns the most appropriate available name for a given user
+func GetName(member *discordgo.Member) string {
+    name := "Unknown"
+
+    if nick := member.Nick; len(nick) > 0 {
+        name = nick
+    } else if display_name := member.User.GlobalName; len(display_name) > 0 {
+        name = display_name
+    } else if username := member.User.Username; len(username) > 0 {
+        name = username
     }
-    return emoji.ID
+
+    return name
 }

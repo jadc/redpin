@@ -54,7 +54,16 @@ var command_config_main = Command{
         discord.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
             Type: discordgo.InteractionResponseChannelMessageWithSource,
             Data: &discordgo.InteractionResponseData{
-                Content: fmt.Sprintf("**Current Config**\n```json\n%s\n```", string(j)),
+                Embeds: []*discordgo.MessageEmbed{
+                    {
+                        Fields: []*discordgo.MessageEmbedField{
+                            {
+                                Name: "Current Config",
+                                Value: fmt.Sprintf("```json\n%s\n```", string(j)),
+                            },
+                        },
+                    },
+                },
                 Flags:   discordgo.MessageFlagsEphemeral,
             },
         })
@@ -94,7 +103,9 @@ var command_config_channel = Command{
         discord.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
             Type: discordgo.InteractionResponseChannelMessageWithSource,
             Data: &discordgo.InteractionResponseData{
-                Content: fmt.Sprintf("Set pin channel to <#%s>", new_value),
+                Embeds: []*discordgo.MessageEmbed{
+                    { Title: fmt.Sprintf("Set pin channel to <#%s>", new_value) },
+                },
                 Flags:   discordgo.MessageFlagsEphemeral,
             },
         })
@@ -133,7 +144,9 @@ var command_config_threshold = Command{
         discord.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
             Type: discordgo.InteractionResponseChannelMessageWithSource,
             Data: &discordgo.InteractionResponseData{
-                Content: fmt.Sprintf("Set reaction threshold to %d", new_value),
+                Embeds: []*discordgo.MessageEmbed{
+                    { Title: fmt.Sprintf("Set reaction threshold to %d", new_value) },
+                },
                 Flags:   discordgo.MessageFlagsEphemeral,
             },
         })
@@ -176,7 +189,9 @@ var command_config_nsfw = Command{
         discord.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
             Type: discordgo.InteractionResponseChannelMessageWithSource,
             Data: &discordgo.InteractionResponseData{
-                Content: resp,
+                Embeds: []*discordgo.MessageEmbed{
+                    { Title: resp },
+                },
                 Flags:   discordgo.MessageFlagsEphemeral,
             },
         })
@@ -219,7 +234,9 @@ var command_config_selfpin = Command{
         discord.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
             Type: discordgo.InteractionResponseChannelMessageWithSource,
             Data: &discordgo.InteractionResponseData{
-                Content: resp,
+                Embeds: []*discordgo.MessageEmbed{
+                    { Title: resp },
+                },
                 Flags:   discordgo.MessageFlagsEphemeral,
             },
         })
@@ -259,7 +276,9 @@ var command_config_replydepth = Command{
         discord.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
             Type: discordgo.InteractionResponseChannelMessageWithSource,
             Data: &discordgo.InteractionResponseData{
-                Content: fmt.Sprintf("Set reply depth to %d", new_value),
+                Embeds: []*discordgo.MessageEmbed{
+                    { Title: fmt.Sprintf("Set reply depth to %d", new_value) },
+                },
                 Flags:   discordgo.MessageFlagsEphemeral,
             },
         })
@@ -307,7 +326,9 @@ var command_config_emoji = Command{
         discord.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
             Type: discordgo.InteractionResponseChannelMessageWithSource,
             Data: &discordgo.InteractionResponseData{
-                Content: resp,
+                Embeds: []*discordgo.MessageEmbed{
+                    { Title: resp },
+                },
                 Flags:   discordgo.MessageFlagsEphemeral,
             },
         })

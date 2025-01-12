@@ -2,6 +2,7 @@ package misc
 
 import (
 	"database/sql"
+	"errors"
 	"fmt"
     "log"
 
@@ -10,6 +11,8 @@ import (
 )
 
 var (
+    ALREADY_PINNED = errors.New("Message is already pinned")
+
     // Hashset of valid message types
     VALID_MSG_TYPE = map[discordgo.MessageType]struct{}{
         discordgo.MessageTypeDefault: {},
@@ -52,8 +55,7 @@ func PinMessage(discord *discordgo.Session, webhook *discordgo.Webhook, msg *dis
 
     // Return existing pin_id if it exists
     if len(pin_channel_id) > 0 && len(pin_id) > 0 {
-        log.Printf("Message with ID %s is already pinned", msg.ID)
-        return pin_channel_id, pin_id, nil
+        return pin_channel_id, pin_id, ALREADY_PINNED
     }
 
     // Get config
@@ -68,19 +70,10 @@ func PinMessage(discord *discordgo.Session, webhook *discordgo.Webhook, msg *dis
         AllowedMentions: &discordgo.MessageAllowedMentions{},
     }
     if a := msg.Author; a != nil {
-        // Get message author's name
-        params.Username = a.Username
-        member, err := discord.GuildMember(webhook.GuildID, a.ID)
-        if err == nil {
-            if len(member.Nick) > 0 {
-                params.Username = member.Nick
-            } else if len(member.User.GlobalName) > 0 {
-                params.Username = member.User.GlobalName
-            }
+        if member, err := discord.GuildMember(webhook.GuildID, a.ID); err == nil {
+            params.Username = GetName(member)
+            params.AvatarURL = member.AvatarURL("")
         }
-
-        // Copy avatar
-        params.AvatarURL = msg.Author.AvatarURL("")
     }
 
     // If the message being pinned is a reply, pin the referenced message first
@@ -106,7 +99,7 @@ func PinMessage(discord *discordgo.Session, webhook *discordgo.Webhook, msg *dis
             }
 
             // Send link to pinned referenced message
-            params.Content = fmt.Sprintf("-# ╰ Reply to https://discord.com/channels/%s/%s/%s", webhook.GuildID, ref_pin_channel_id, ref_pin_msg_id)
+            params.Content = fmt.Sprintf("-# ╰ Reply to %s", GetMessageLink(webhook.GuildID, ref_pin_channel_id, ref_pin_msg_id))
             _, err = discord.WebhookExecute(webhook.ID, webhook.Token, true, params)
             if err != nil {
                 log.Printf("Failed to send link to pinned referenced message of message '%s': %v", msg.ID, err)
@@ -123,10 +116,7 @@ func PinMessage(discord *discordgo.Session, webhook *discordgo.Webhook, msg *dis
     }
 
     // Send footer
-    params.Content = fmt.Sprintf(
-        "-# https://discord.com/channels/%s/%s/%s %s",
-        webhook.GuildID, msg.ChannelID, msg.ID, msg.Author.Mention(),
-    )
+    params.Content = fmt.Sprintf("-# %s %s", GetMessageLink(webhook.GuildID, msg.ChannelID, msg.ID), msg.Author.Mention())
     _, err = discord.WebhookExecute(webhook.ID, webhook.Token, true, params)
     if err != nil {
         return "", "", fmt.Errorf("Failed to execute webhook: %v", err)

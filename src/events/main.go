@@ -18,4 +18,5 @@ func RegisterAll(discord *discordgo.Session) {
     discord.AddHandler(onReady)
     discord.AddHandler(onChannelUpdate)
     discord.AddHandler(onChannelDelete)
+    discord.AddHandler(onPin)
 }
