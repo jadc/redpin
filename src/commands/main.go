@@ -16,6 +16,7 @@ func RegisterAll(discord *discordgo.Session) error {
     // Populate signature
     registerConfig()
     registerPin()
+    registerStats()
 
     // Register signature
     _, err := discord.ApplicationCommandBulkOverwrite(discord.State.User.ID, "", signatures)
