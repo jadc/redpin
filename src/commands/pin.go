@@ -30,12 +30,12 @@ var command_pin = Command{
     handler: func(discord *discordgo.Session, option int, i *discordgo.InteractionCreate) {
         selected_msg := i.ApplicationCommandData().Resolved.Messages[i.ApplicationCommandData().TargetID]
         msg_link := misc.GetMessageLink(i.GuildID, i.ChannelID, selected_msg.ID)
+        embeds := []*discordgo.MessageEmbed{ LoadingEmbed(fmt.Sprintf("Pinning %s...", msg_link)) }
 
         // Send message acknowledging request
-        resp := fmt.Sprintf("-# :hourglass_flowing_sand: Pinning %s...", msg_link)
         discord.InteractionRespond(i.Interaction, &discordgo.InteractionResponse{
             Type: discordgo.InteractionResponseChannelMessageWithSource,
-            Data: &discordgo.InteractionResponseData{ Content: resp },
+            Data: &discordgo.InteractionResponseData{ Embeds: embeds },
         })
         var pin_channel_id string
         var pin_msg_id string
@@ -48,7 +48,15 @@ var command_pin = Command{
 
         if err != nil {
             log.Printf("Failed to pin message '%s': %v", selected_msg.ID, err)
-            resp = fmt.Sprintf("### :x: Failed to pin %s\n```%v```", msg_link, err)
+            embeds[0].Title = fmt.Sprintf(":x:  Failed to pin %s", msg_link)
+            embeds[0].Fields = append(embeds[0].Fields, &discordgo.MessageEmbedField{
+                Name: "Reason",
+                Value: fmt.Sprintf("```%v```", err),
+            })
+
+            // Edit response with state of pin
+            discord.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{ Embeds: &embeds })
+
         } else {
             pin_link := misc.GetMessageLink(i.GuildID, pin_channel_id, pin_msg_id)
 
@@ -57,11 +65,10 @@ var command_pin = Command{
                 pinner = i.Member.Mention()
             }
 
-            resp = fmt.Sprintf("### :pushpin: %s pinned [a message](%s). See the [pinned message](%s).", pinner, msg_link, pin_link)
+            // Edit response with state of pin
+            resp := fmt.Sprintf("### :pushpin: %s pinned [a message](%s). See the [pinned message](%s).", pinner, msg_link, pin_link)
+            discord.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{ Content: &resp, Embeds: &[]*discordgo.MessageEmbed{} })
         }
-
-        // Edit response with state of pin
-        discord.InteractionResponseEdit(i.Interaction, &discordgo.WebhookEdit{ Content: &resp })
     },
 }
 
