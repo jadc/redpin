@@ -70,19 +70,10 @@ func PinMessage(discord *discordgo.Session, webhook *discordgo.Webhook, msg *dis
         AllowedMentions: &discordgo.MessageAllowedMentions{},
     }
     if a := msg.Author; a != nil {
-        // Get message author's name
-        params.Username = a.Username
-        member, err := discord.GuildMember(webhook.GuildID, a.ID)
-        if err == nil {
-            if len(member.Nick) > 0 {
-                params.Username = member.Nick
-            } else if len(member.User.GlobalName) > 0 {
-                params.Username = member.User.GlobalName
-            }
+        if member, err := discord.GuildMember(webhook.GuildID, a.ID); err == nil {
+            params.Username = GetName(member)
+            params.AvatarURL = member.AvatarURL("")
         }
-
-        // Copy avatar
-        params.AvatarURL = msg.Author.AvatarURL("")
     }
 
     // If the message being pinned is a reply, pin the referenced message first
