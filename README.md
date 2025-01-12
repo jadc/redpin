@@ -28,8 +28,7 @@ This repository contains the modern rewrite and expansion of **redpin** in the G
     - [x] Pins preserve attachments when possible
 - [ ] Implement nice-to-haves
     - [ ] Emoji-themed pin channels
-    - [ ] Per-user leaderboard for how many of their messages have been pinned (toggleable)
-    - [ ] Pin score: ratio between pins given and pins received (toggleable)
+    - [x] Leaderboard for users with most pins (and emojis used)
 - [ ] Write tests
 - [x] Write CI/CD pipeline for automatic building and running tests
 - [ ] Write Dockerfile for production deployment
