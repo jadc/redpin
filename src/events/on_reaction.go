@@ -43,7 +43,6 @@ func onReaction(discord *discordgo.Session, event *discordgo.MessageReactionAdd)
 
     // Ignore reactions in NSFW channels
     if !c.NSFW && isNSFW(discord, reaction.ChannelID) {
-        log.Print("Skipping reaction in NSFW channel")
         return
     }
 
@@ -62,6 +61,14 @@ func onReaction(discord *discordgo.Session, event *discordgo.MessageReactionAdd)
     _, _, err = misc.PinMessage(discord, webhook, message, 0)
     if err != nil {
         log.Printf("Failed to pin message with ID %s: %v", message.ID, err)
+        return
+    }
+
+    // Update stats for author of message getting pinned
+    err = db.AddStats(event.GuildID, message.Author.ID, reaction.Emoji.MessageFormat())
+    if err != nil {
+        log.Printf("Failed to update statistics: %v", err)
+        return
     }
 }
 
@@ -80,14 +87,12 @@ func onReactionRemove(discord *discordgo.Session, event *discordgo.MessageReacti
             }
         }
     }
-    log.Printf("Removed react for message %s, emoji %s", event.MessageID, event.Emoji.ID)
 }
 
 // Update selfpin map on message delete
 func onMessageDelete(discord *discordgo.Session, event *discordgo.MessageDelete) {
     if selfpin[event.Message.ID] != nil {
         delete(selfpin, event.Message.ID)
-        log.Printf("Deleted reaction count for message %s", event.Message.ID)
     }
 }
 
@@ -97,8 +102,7 @@ func shouldPin(c *database.Config, message *discordgo.Message) bool {
         // If allowlist is non-empty, only then filter emojis
         if len(c.Allowlist) > 0 {
             // Ignore reactions not in the allowlist hashset
-            if _, ok := c.Allowlist[misc.GetEmojiID(r.Emoji)]; !ok {
-                log.Print("Skipping reaction not in allowlist")
+            if _, ok := c.Allowlist[r.Emoji.APIName()]; !ok {
                 continue
             }
         }
