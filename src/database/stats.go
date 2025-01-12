@@ -5,6 +5,12 @@ import (
 	"fmt"
 )
 
+type UserStats struct {
+    UserID string
+    Total int
+    Emojis []*EmojiQuantity
+}
+
 type EmojiQuantity struct {
     EmojiID string
     Count int
@@ -42,35 +48,35 @@ func (db *database) AddStats(guild_id string, user_id string, emoji_id string) e
     return nil
 }
 
-// GetStats returns the total number of pins a user has received in a guild.
-func (db *database) GetStats(guild_id string, user_id string) (int, error) {
-    // Create guild pins table if it doesn't exist
-    err = db.createPinTable(guild_id)
-    if err != nil {
-        return 0, err
-    }
-
-    // Query total count
-    var count int
-    query := fmt.Sprintf(`SELECT COUNT(*) FROM stats_%s WHERE user_id = ?`, guild_id)
-    err := db.Instance.QueryRowContext(context.Background(), query, user_id).Scan(&count)
-    if err != nil {
-        return 0, err
-    }
-
-    return count, nil
-}
-
-// GetDetailedStats returns the total number of pins, with specific emojis used, a user has received in a guild.
-func (db *database) GetDetailedStats(guild_id string, user_id string) ([]*EmojiQuantity, error) {
+// GetStats returns the total number of pins, with specific emojis used, a user has received in a guild.
+func (db *database) GetStats(guild_id string, user_id string) (*UserStats, error) {
     // Create guild pins table if it doesn't exist
     err = db.createPinTable(guild_id)
     if err != nil {
         return nil, err
     }
 
+    stats := &UserStats{ UserID: user_id }
+
+    // Query total count
+    var count int
+    query := fmt.Sprintf(`
+        SELECT COUNT(*)
+        FROM stats_%s
+        WHERE user_id = ?`, guild_id)
+    err := db.Instance.QueryRowContext(context.Background(), query, user_id).Scan(&count)
+    if err != nil {
+        return nil, err
+    }
+    stats.Total = count
+
     // Query count of each emoji
-    query := fmt.Sprintf(`SELECT emoji_id, COUNT(*) FROM stats_%s WHERE user_id = ? GROUP BY emoji_id`, guild_id)
+    query = fmt.Sprintf(`
+        SELECT emoji_id, COUNT(*) as count
+        FROM stats_%s
+        WHERE user_id = ?
+        GROUP BY emoji_id
+        ORDER BY count DESC`, guild_id)
     rows, err := db.Instance.QueryContext(context.Background(), query, user_id)
     if err != nil {
         return nil, err
@@ -78,14 +84,55 @@ func (db *database) GetDetailedStats(guild_id string, user_id string) ([]*EmojiQ
     defer rows.Close()
 
     // Convert counts into list of structs
-    var quantities []*EmojiQuantity
     for rows.Next() {
         var q EmojiQuantity
         if err := rows.Scan(&q.EmojiID, &q.Count); err != nil {
             return nil, err
         }
-        quantities = append(quantities, &q)
+        stats.Emojis = append(stats.Emojis, &q)
     }
 
-    return quantities, nil
+    return stats, nil
+}
+
+// GetLeaderboard returns the top ten users in a guild with the most total number of pins, with specific emojis used.
+func (db *database) GetLeaderboard(guild_id string) ([]*UserStats, error) {
+    // Create guild pins table if it doesn't exist
+    err = db.createPinTable(guild_id)
+    if err != nil {
+        return nil, err
+    }
+
+    stats_list := []*UserStats{}
+
+    // Get top ten users
+    query := fmt.Sprintf(`
+        SELECT user_id, COUNT(*) as count
+        FROM stats_%s
+        GROUP BY user_id
+        ORDER BY count DESC
+        LIMIT 10`, guild_id)
+    rows, err := db.Instance.QueryContext(context.Background(), query)
+    if err != nil {
+        return nil, err
+    }
+    defer rows.Close()
+
+    // Get statistics for each user
+    for rows.Next() {
+        var user_id string
+        var count int
+        if err := rows.Scan(&user_id, &count); err != nil {
+            return nil, err
+        }
+
+        stats, err := db.GetStats(guild_id, user_id);
+        if err != nil {
+            return nil, err
+        }
+
+        stats_list = append(stats_list, stats)
+    }
+
+    return stats_list, nil
 }
