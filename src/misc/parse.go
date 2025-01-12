@@ -34,3 +34,18 @@ func ExtractEmojis(text string) []string {
 func GetMessageLink(guild_id string, channel_id string, message_id string) string {
     return fmt.Sprintf("%schannels/%s/%s/%s", discordgo.EndpointDiscord, guild_id, channel_id, message_id)
 }
+
+// GetName returns the most appropriate available name for a given user
+func GetName(member *discordgo.Member) string {
+    name := "Unknown"
+
+    if nick := member.Nick; len(nick) > 0 {
+        name = nick
+    } else if display_name := member.User.GlobalName; len(display_name) > 0 {
+        name = display_name
+    } else if username := member.User.Username; len(username) > 0 {
+        name = username
+    }
+
+    return name
+}
