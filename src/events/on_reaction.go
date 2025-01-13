@@ -41,6 +41,11 @@ func onReaction(discord *discordgo.Session, event *discordgo.MessageReactionAdd)
     }
     c := db.GetConfig(event.GuildID)
 
+    // Ignore reactions in pin channel
+    if reaction.ChannelID == c.Channel {
+        return
+    }
+
     // Ignore reactions in NSFW channels
     if !c.NSFW && isNSFW(discord, reaction.ChannelID) {
         return
@@ -51,7 +56,7 @@ func onReaction(discord *discordgo.Session, event *discordgo.MessageReactionAdd)
     }
 
     // Get the current webhook
-    webhook, err := misc.GetWebhook(discord, event.GuildID)
+    webhook, err := misc.GetWebhook(discord, event.GuildID, message.Author.ID)
     if err != nil {
         log.Printf("Failed to retrieve webhook: %v", err)
         return

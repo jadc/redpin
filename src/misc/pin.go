@@ -93,7 +93,7 @@ func PinMessage(discord *discordgo.Session, webhook *discordgo.Webhook, msg *dis
 
             // Reply should use a new webhook as to not merge messages
             // If creating a new webhook fails somehow, just use the old one
-            new_webhook, err := GetWebhook(discord, webhook.GuildID)
+            new_webhook, err := GetWebhook(discord, webhook.GuildID, ref_msg.Author.ID)
             if err == nil {
                 webhook = new_webhook
             }

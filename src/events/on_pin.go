@@ -27,7 +27,7 @@ func onPin(discord *discordgo.Session, event *discordgo.ChannelPinsUpdate) {
     }
 
     // Get the current webhook
-    webhook, err := misc.GetWebhook(discord, event.GuildID)
+    webhook, err := misc.GetWebhook(discord, event.GuildID, pins[0].Author.ID)
     if err != nil {
         return
     }

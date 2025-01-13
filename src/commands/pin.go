@@ -41,7 +41,7 @@ var command_pin = Command{
         var pin_msg_id string
 
         // Get the current webhook
-        webhook, err := misc.GetWebhook(discord, i.GuildID)
+        webhook, err := misc.GetWebhook(discord, i.GuildID, selected_msg.Author.ID)
         if err == nil {
             pin_channel_id, pin_msg_id, err = misc.PinMessage(discord, webhook, selected_msg, 0)
         }
