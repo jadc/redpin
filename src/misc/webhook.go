@@ -18,15 +18,20 @@ var (
     MAX_LINKS int = 5
 )
 
-// Hashmap of webhook id -> last used timestamp
+type webhookUse struct {
+    UserID string
+    Timestamp int64
+}
+
+// Hashmap of webhook id -> last used timestamp and user
 // Used to prevent many pins in quick succession from being merged into one message
 // Technically, if the bot is restarted, timestamps are reset and
 // messages may get merged, but this is a very unlikely scenario
-var timestamps = make(map[string]int64)
+var timestamps = make(map[string]*webhookUse)
 
 // GetWebhook gets the webhook for a given guild
 // Returns the webhook's ID (existing or new) if successful
-func GetWebhook(discord *discordgo.Session, guild_id string) (*discordgo.Webhook, error) {
+func GetWebhook(discord *discordgo.Session, guild_id string, user_id string) (*discordgo.Webhook, error) {
     db, err := database.Connect()
     if err != nil {
         log.Printf("Failed to connect to database: %v", err)
@@ -45,12 +50,12 @@ func GetWebhook(discord *discordgo.Session, guild_id string) (*discordgo.Webhook
     // Create new webhook if one does not exist already
     if err == sql.ErrNoRows || webhook_id == "" {
         log.Printf("Creating new webhook for guild '%s'", guild_id)
-        return createWebhook(discord, guild_id, c.Channel)
+        return createWebhook(discord, guild_id, c.Channel, user_id)
     }
 
     // Discard current webhook if it is too young
-    if timestamp, ok := timestamps[webhook_id]; ok {
-        if time.Now().UnixMilli() - timestamp < MERGE_TIME {
+    if use, ok := timestamps[webhook_id]; ok {
+        if use.UserID == user_id && time.Now().UnixMilli() - use.Timestamp < MERGE_TIME {
             log.Printf("Current webhook '%s' is too young, creating a new one", webhook_id)
 
             // Clear outdated webhooks
@@ -60,18 +65,21 @@ func GetWebhook(discord *discordgo.Session, guild_id string) (*discordgo.Webhook
             }
             delete(timestamps, webhook_id)
 
-            return createWebhook(discord, guild_id, c.Channel)
+            return createWebhook(discord, guild_id, c.Channel, user_id)
         }
     }
 
     // Update timestamps
-    timestamps[webhook_id] = time.Now().UnixMilli()
+    timestamps[webhook_id] = &webhookUse{
+        UserID: user_id,
+        Timestamp: time.Now().UnixMilli(),
+    }
 
     // Retrieve webhook object, create a new one if it's invalid
     webhook, err := discord.Webhook(webhook_id)
     if err != nil {
         log.Printf("Failed to retrieve webhook '%s', creating a new one: %v", webhook_id, err)
-        return createWebhook(discord, guild_id, c.Channel)
+        return createWebhook(discord, guild_id, c.Channel, user_id)
     }
 
     // Ensure webhook is pointing to current pin channel
@@ -85,7 +93,7 @@ func GetWebhook(discord *discordgo.Session, guild_id string) (*discordgo.Webhook
         }
 
         // Create new webhook in pin channel
-        return createWebhook(discord, guild_id, c.Channel)
+        return createWebhook(discord, guild_id, c.Channel, user_id)
     }
 
     // Return existing webhook if it is valid
@@ -94,7 +102,7 @@ func GetWebhook(discord *discordgo.Session, guild_id string) (*discordgo.Webhook
 
 // createWebhook creates a webhook for a given guild to the given pin channel
 // Returns the webhook's ID if successful
-func createWebhook(discord *discordgo.Session, guild_id string, channel_id string) (*discordgo.Webhook, error) {
+func createWebhook(discord *discordgo.Session, guild_id string, channel_id string, user_id string) (*discordgo.Webhook, error) {
     db, err := database.Connect()
     if err != nil {
         log.Printf("Failed to connect to database: %v", err)
@@ -112,7 +120,10 @@ func createWebhook(discord *discordgo.Session, guild_id string, channel_id strin
     }
 
     // Update timestamps
-    timestamps[webhook.ID] = time.Now().UnixMilli()
+    timestamps[webhook.ID] = &webhookUse{
+        UserID: user_id,
+        Timestamp: time.Now().UnixMilli(),
+    }
 
     return webhook, nil
 }
