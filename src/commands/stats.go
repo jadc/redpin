@@ -56,33 +56,39 @@ var command_stats_leaderboard = Command{
         }
 
         embeds := []*discordgo.MessageEmbed{}
-        for n, stats := range lb {
-            embed := &discordgo.MessageEmbed{}
+        if len(lb) > 0 {
+            for n, stats := range lb {
+                embed := &discordgo.MessageEmbed{}
 
-            // Set embed header to identity
-            if member, err := discord.GuildMember(i.GuildID, stats.UserID); err == nil {
-                embed.Author = &discordgo.MessageEmbedAuthor{
-                    Name: fmt.Sprintf("%d. %s (%d total pins)", n+1, misc.GetName(member), stats.Total),
-                    IconURL: member.AvatarURL(""),
+                // Set embed header to identity
+                if member, err := discord.GuildMember(i.GuildID, stats.UserID); err == nil {
+                    embed.Author = &discordgo.MessageEmbedAuthor{
+                        Name: fmt.Sprintf("%d. %s (%d total pins)", n+1, misc.GetName(member), stats.Total),
+                        IconURL: member.AvatarURL(""),
+                    }
+                } else {
+                    log.Printf("Failed to retrieve member '%s' for embed: %v", stats.UserID, err)
+                    continue
                 }
-            } else {
-                log.Printf("Failed to retrieve member '%s' for embed: %v", stats.UserID, err)
-                continue
-            }
 
-            // Create fields for top 3 most used emojis
-            var emojis strings.Builder
-            num_of_emojis := min(len(stats.Emojis), LEADERBOARD_NUM_OF_EMOJIS)
-            emojis.WriteString("-# ")
-            for i, e := range stats.Emojis[:num_of_emojis] {
-                emojis.WriteString(fmt.Sprintf("%s x %d", e.EmojiID, e.Count))
-                if i < num_of_emojis - 1 {
-                    emojis.WriteString(", ")
+                // Create fields for top 3 most used emojis
+                var emojis strings.Builder
+                num_of_emojis := min(len(stats.Emojis), LEADERBOARD_NUM_OF_EMOJIS)
+                emojis.WriteString("-# ")
+                for i, e := range stats.Emojis[:num_of_emojis] {
+                    emojis.WriteString(fmt.Sprintf("%s x %d", e.EmojiID, e.Count))
+                    if i < num_of_emojis - 1 {
+                        emojis.WriteString(", ")
+                    }
                 }
-            }
-            embed.Description = emojis.String()
+                embed.Description = emojis.String()
 
-            embeds = append(embeds, embed)
+                embeds = append(embeds, embed)
+            }
+        } else {
+            embeds = append(embeds, &discordgo.MessageEmbed{
+                Title: ":grey_question:  No data",
+            })
         }
 
         // Edit response with state of pin
