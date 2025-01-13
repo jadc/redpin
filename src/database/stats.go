@@ -51,7 +51,7 @@ func (db *database) AddStats(guild_id string, user_id string, emoji_id string) e
 // GetStats returns the total number of pins, with specific emojis used, a user has received in a guild.
 func (db *database) GetStats(guild_id string, user_id string) (*UserStats, error) {
     // Create guild pins table if it doesn't exist
-    err = db.createPinTable(guild_id)
+    err = db.createStatsTable(guild_id)
     if err != nil {
         return nil, err
     }
@@ -98,7 +98,7 @@ func (db *database) GetStats(guild_id string, user_id string) (*UserStats, error
 // GetLeaderboard returns the top ten users in a guild with the most total number of pins, with specific emojis used.
 func (db *database) GetLeaderboard(guild_id string) ([]*UserStats, error) {
     // Create guild pins table if it doesn't exist
-    err = db.createPinTable(guild_id)
+    err = db.createStatsTable(guild_id)
     if err != nil {
         return nil, err
     }
