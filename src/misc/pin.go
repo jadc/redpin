@@ -78,16 +78,15 @@ func PinMessage(discord *discordgo.Session, webhook *discordgo.Webhook, msg *dis
 
     // If the message being pinned is a reply,
     // pin the referenced message first (as long as reply depth isn't reached)
-    ref_header := ""
     if msg.MessageReference != nil && depth + 1 <= c.ReplyDepth {
-        ref_header, err = createReferenceHeader(discord, webhook, msg.MessageReference, depth + 1)
+        err := createReferenceHeader(discord, webhook, params, msg.MessageReference, depth + 1)
         if err != nil {
-            log.Printf("Failed to create reference header: %v", err)
+            log.Printf("Failed to send reference header: %v", err)
         }
     }
 
     // Send the webhook copy to the pin channel
-    pin_msg, err := cloneMessage(discord, msg, webhook, params, ref_header)
+    pin_msg, err := cloneMessage(discord, msg, webhook, params)
     if err != nil {
         return "", "", fmt.Errorf("Failed to clone pin message: %v", err)
     }
