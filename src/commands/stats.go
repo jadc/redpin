@@ -123,7 +123,7 @@ var command_stats_user = Command{
             // Build embed header
             if member, err := discord.GuildMember(i.GuildID, user.ID); err == nil {
                 embeds[0].Author = &discordgo.MessageEmbedAuthor{
-                    Name: fmt.Sprintf("Statistics for %s", misc.GetName(member)),
+                    Name: "Statistics for " + misc.GetName(member),
                     IconURL: member.AvatarURL(""),
                 }
             }

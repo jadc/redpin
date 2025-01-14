@@ -41,14 +41,14 @@ var command_pin = Command{
         var pin_msg_id string
 
         // Get the current webhook
-        webhook, err := misc.GetWebhook(discord, i.GuildID, selected_msg.Author.ID)
+        webhook, err := misc.GetWebhook(discord, i.GuildID)
         if err == nil {
             pin_channel_id, pin_msg_id, err = misc.PinMessage(discord, webhook, selected_msg, 0)
         }
 
         if err != nil {
             log.Printf("Failed to pin message '%s': %v", selected_msg.ID, err)
-            embeds[0].Title = fmt.Sprintf(":x:  Failed to pin %s", msg_link)
+            embeds[0].Title = ":x:  Failed to pin " + msg_link
             embeds[0].Fields = append(embeds[0].Fields, &discordgo.MessageEmbedField{
                 Name: "Reason",
                 Value: fmt.Sprintf("```%v```", err),

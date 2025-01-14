@@ -5,7 +5,6 @@ import (
 	"fmt"
     "log"
     "net/http"
-    "time"
     "strings"
 
 	"github.com/bwmarrin/discordgo"
@@ -13,119 +12,118 @@ import (
 )
 
 var (
-    MERGE_TIME int64 = 10*60*1000
     MAX_FILES int = 10
     MAX_LINKS int = 5
 )
 
-type webhookUse struct {
-    UserID string
-    Timestamp int64
+type WebhookPair struct {
+    WebhookA *discordgo.Webhook
+    WebhookB *discordgo.Webhook
+    LRU bool
 }
 
-// Hashmap of webhook id -> last used timestamp and user
+// Hashmap of guild id -> pair of webhook ids
 // Used to prevent many pins in quick succession from being merged into one message
-// Technically, if the bot is restarted, timestamps are reset and
+// Technically, if the bot is restarted, the LRU bit is reset and
 // messages may get merged, but this is a very unlikely scenario
-var timestamps = make(map[string]*webhookUse)
+var webhooks = make(map[string]*WebhookPair)
 
-// GetWebhook gets the webhook for a given guild
-// Returns the webhook's ID (existing or new) if successful
-func GetWebhook(discord *discordgo.Session, guild_id string, user_id string) (*discordgo.Webhook, error) {
+// GetWebhook returns the appropriate webhook ID for a given guild
+func GetWebhook(discord *discordgo.Session, guild_id string) (*discordgo.Webhook, error) {
     db, err := database.Connect()
     if err != nil {
-        log.Printf("Failed to connect to database: %v", err)
+        return nil, fmt.Errorf("Failed to connect to database: %v", err)
+    }
+    c := db.GetConfig(guild_id)
+
+    // Attempt to read from cache
+    if pair, ok := webhooks[guild_id]; ok {
+        // Create new webhooks, and delete the old ones, if expired
+        if pair.WebhookA.ChannelID != c.Channel || pair.WebhookB.ChannelID != c.Channel {
+            discord.WebhookDelete(pair.WebhookA.ID)
+            discord.WebhookDelete(pair.WebhookB.ID)
+
+            pair, err = createWebhook(discord, guild_id, c.Channel)
+            if err != nil {
+                return nil, err
+            }
+        }
+
+        // Alternate between the two webhooks
+        pair.LRU = !pair.LRU
+        if pair.LRU {
+            return pair.WebhookB, nil
+        } else {
+            return pair.WebhookA, nil
+        }
     }
 
     // Query database for an existing webhook
-    webhook_id, err := db.GetWebhook(guild_id)
+    webhook_a_id, webhook_b_id, err := db.GetWebhook(guild_id)
 
     // Only throw up error if it's an actual error (not just row not found)
     if err != nil && err != sql.ErrNoRows {
-        return nil, fmt.Errorf("Failed to retrieve webhook_id for guild with ID %s: %v", guild_id, err)
+        return nil, fmt.Errorf("Failed to retrieve webhook pair for guild '%s': %v", guild_id, err)
     }
-
-    c := db.GetConfig(guild_id)
 
     // Create new webhook if one does not exist already
-    if err == sql.ErrNoRows || webhook_id == "" {
-        log.Printf("Creating new webhook for guild '%s'", guild_id)
-        return createWebhook(discord, guild_id, c.Channel, user_id)
-    }
-
-    // Discard current webhook if it is too young
-    if use, ok := timestamps[webhook_id]; ok {
-        if use.UserID == user_id && time.Now().UnixMilli() - use.Timestamp < MERGE_TIME {
-            log.Printf("Current webhook '%s' is too young, creating a new one", webhook_id)
-
-            // Clear outdated webhooks
-            err = discord.WebhookDelete(webhook_id)
-            if err != nil {
-                return nil, fmt.Errorf("Failed to delete outdated webhook '%s': %v", webhook_id, err)
-            }
-            delete(timestamps, webhook_id)
-
-            return createWebhook(discord, guild_id, c.Channel, user_id)
-        }
-    }
-
-    // Update timestamps
-    timestamps[webhook_id] = &webhookUse{
-        UserID: user_id,
-        Timestamp: time.Now().UnixMilli(),
-    }
-
-    // Retrieve webhook object, create a new one if it's invalid
-    webhook, err := discord.Webhook(webhook_id)
-    if err != nil {
-        log.Printf("Failed to retrieve webhook '%s', creating a new one: %v", webhook_id, err)
-        return createWebhook(discord, guild_id, c.Channel, user_id)
-    }
-
-    // Ensure webhook is pointing to current pin channel
-    if webhook.ChannelID != c.Channel {
-        log.Printf("Webhook is pointing to wrong channel, updating")
-
-        // Clear outdated webhooks
-        err = discord.WebhookDelete(webhook_id)
+    if err == sql.ErrNoRows || len(webhook_a_id) == 0 || len(webhook_b_id) == 0 {
+        _, err := createWebhook(discord, guild_id, c.Channel)
         if err != nil {
-            return nil, fmt.Errorf("Failed to delete outdated webhook '%s': %v", webhook_id, err)
+            return nil, err
         }
-
-        // Create new webhook in pin channel
-        return createWebhook(discord, guild_id, c.Channel, user_id)
+        return GetWebhook(discord, guild_id)
     }
 
-    // Return existing webhook if it is valid
-    return webhook, nil
+    // Retrieve webhook objects, create a new one if it's invalid
+    var webhook_a *discordgo.Webhook
+    var webhook_b *discordgo.Webhook
+    webhook_a, err = discord.Webhook(webhook_a_id)
+    if err == nil {
+        webhook_b, err = discord.Webhook(webhook_b_id)
+    }
+    if err != nil {
+        _, err := createWebhook(discord, guild_id, c.Channel)
+        if err != nil {
+            return nil, err
+        }
+        return GetWebhook(discord, guild_id)
+    }
+
+    // Cache ond return existing webhook pair
+    webhooks[guild_id] = &WebhookPair{ WebhookA: webhook_a, WebhookB: webhook_b }
+    return GetWebhook(discord, guild_id)
 }
 
-// createWebhook creates a webhook for a given guild to the given pin channel
-// Returns the webhook's ID if successful
-func createWebhook(discord *discordgo.Session, guild_id string, channel_id string, user_id string) (*discordgo.Webhook, error) {
+// createWebhook creates a webhook pair for a given guild in the given pin channel
+func createWebhook(discord *discordgo.Session, guild_id string, channel_id string) (*WebhookPair, error) {
     db, err := database.Connect()
     if err != nil {
-        log.Printf("Failed to connect to database: %v", err)
+        return nil, fmt.Errorf("Failed to connect to database: %v", err)
     }
 
-    // Create new webhook in given channel
-    webhook, err := discord.WebhookCreate(channel_id, "redpin", "")
+    // Create webhook A in given channel
+    webhookA, err := discord.WebhookCreate(channel_id, "redpin A", "")
     if err != nil {
-        return nil, fmt.Errorf("Failed to create webhook in channel '%s': %v", channel_id, err)
+        return nil, fmt.Errorf("Failed to create webhook A in channel '%s': %v", channel_id, err)
     }
 
-    err = db.SetWebhook(guild_id, webhook.ID)
+    // Create webhook A in given channel
+    webhookB, err := discord.WebhookCreate(channel_id, "redpin B", "")
+    if err != nil {
+        return nil, fmt.Errorf("Failed to create webhook B in channel '%s': %v", channel_id, err)
+    }
+
+    err = db.SetWebhook(guild_id, webhookA.ID, webhookB.ID)
     if err != nil {
         return nil, fmt.Errorf("Failed to add webhook to database: %v", err)
     }
 
-    // Update timestamps
-    timestamps[webhook.ID] = &webhookUse{
-        UserID: user_id,
-        Timestamp: time.Now().UnixMilli(),
-    }
+    // Cache new webhook pair
+    webhooks[guild_id] = &WebhookPair{ WebhookA: webhookA, WebhookB: webhookB }
+    log.Printf("Created new webhook pair for guild '%s'", guild_id)
 
-    return webhook, nil
+    return webhooks[guild_id], nil
 }
 
 // cloneMessage recreates the given message into the given webhook with the given base parameters
@@ -302,4 +300,37 @@ func sizeLimit(discord *discordgo.Session, guild_id string) (int, error) {
     }
 
     return mb * 1024 * 1024, nil
+}
+
+// createReferenceHeader returns a string containing a stylized message reference, used for pins that are replies
+func createReferenceHeader(discord *discordgo.Session, webhook *discordgo.Webhook, params *discordgo.WebhookParams, ref *discordgo.MessageReference, depth int) (error) {
+    // Get the referenced message
+    ref_msg, err := discord.ChannelMessage(ref.ChannelID, ref.MessageID)
+    if err != nil {
+        return fmt.Errorf("Failed to fetch referenced message: %v", err)
+    }
+
+    // Get a new webhook for pinning the referenced message
+    // If getting a new webhook fails somehow, use the existing one
+    new_webhook, err := GetWebhook(discord, webhook.GuildID)
+    if err != nil {
+        new_webhook = webhook
+    }
+
+    // Pin the referenced message
+    ref_pin_channel_id, ref_pin_msg_id, err := PinMessage(discord, new_webhook, ref_msg, depth)
+    if err != nil {
+        return fmt.Errorf("Failed to pin referenced message: %v", err)
+    }
+
+    // Return formatted link to pinned referenced message
+    ref_header := "-# ╰ Reply to " + GetMessageLink(webhook.GuildID, ref_pin_channel_id, ref_pin_msg_id)
+
+    params.Content = ref_header
+    _, err = discord.WebhookExecute(webhook.ID, webhook.Token, true, params)
+    if err != nil {
+        return fmt.Errorf("Failed to send pin footer: %v", err)
+    }
+
+    return nil
 }

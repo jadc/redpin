@@ -50,7 +50,7 @@ func PinMessage(discord *discordgo.Session, webhook *discordgo.Webhook, msg *dis
 
     // Only throw up error if it's an actual error (not just row not found)
     if err != nil && err != sql.ErrNoRows {
-        return "", "", fmt.Errorf("Failed to retrieve pin id for message with ID %s: %v", msg.ID, err)
+        return "", "", fmt.Errorf("Failed to retrieve pin id for message '%s': %v", msg.ID, err)
     }
 
     // Return existing pin_id if it exists
@@ -76,50 +76,26 @@ func PinMessage(discord *discordgo.Session, webhook *discordgo.Webhook, msg *dis
         }
     }
 
-    // If the message being pinned is a reply, pin the referenced message first
-    if c.ReplyDepth > 0 && msg.MessageReference != nil {
-        // Get the referenced message
-        ref_msg, err := discord.ChannelMessage(msg.MessageReference.ChannelID, msg.MessageReference.MessageID)
+    // If the message being pinned is a reply,
+    // pin the referenced message first (as long as reply depth isn't reached)
+    if msg.MessageReference != nil && depth + 1 <= c.ReplyDepth {
+        err := createReferenceHeader(discord, webhook, params, msg.MessageReference, depth + 1)
         if err != nil {
-            log.Printf("Failed to get referenced message of message '%s': %v", msg.ID, err)
-        }
-
-        // Pin the referenced message if the recursion depth has not been reached
-        if depth + 1 <= c.ReplyDepth {
-            ref_pin_channel_id, ref_pin_msg_id, err := PinMessage(discord, webhook, ref_msg, depth + 1)
-            if err != nil {
-                log.Printf("Failed to pin referenced message of message '%s': %v", msg.ID, err)
-            }
-
-            // Reply should use a new webhook as to not merge messages
-            // If creating a new webhook fails somehow, just use the old one
-            new_webhook, err := GetWebhook(discord, webhook.GuildID, ref_msg.Author.ID)
-            if err == nil {
-                webhook = new_webhook
-            }
-
-            // Send link to pinned referenced message
-            params.Content = fmt.Sprintf("-# ╰ Reply to %s", GetMessageLink(webhook.GuildID, ref_pin_channel_id, ref_pin_msg_id))
-            _, err = discord.WebhookExecute(webhook.ID, webhook.Token, true, params)
-            if err != nil {
-                log.Printf("Failed to send link to pinned referenced message of message '%s': %v", msg.ID, err)
-            }
-        } else {
-            log.Print("Maximum pin recursion depth reached, skipping...")
+            log.Printf("Failed to send reference header: %v", err)
         }
     }
 
     // Send the webhook copy to the pin channel
     pin_msg, err := cloneMessage(discord, msg, webhook, params)
     if err != nil {
-        return "", "", fmt.Errorf("Failed to execute webhook: %v", err)
+        return "", "", fmt.Errorf("Failed to clone pin message: %v", err)
     }
 
     // Send footer
-    params.Content = fmt.Sprintf("-# %s %s", GetMessageLink(webhook.GuildID, msg.ChannelID, msg.ID), msg.Author.Mention())
+    params.Content = "-# " + GetMessageLink(webhook.GuildID, msg.ChannelID, msg.ID) + " " + msg.Author.Mention()
     _, err = discord.WebhookExecute(webhook.ID, webhook.Token, true, params)
     if err != nil {
-        return "", "", fmt.Errorf("Failed to execute webhook: %v", err)
+        return "", "", fmt.Errorf("Failed to send pin footer: %v", err)
     }
 
     // Copy reactions from original message if possible
