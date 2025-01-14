@@ -31,7 +31,7 @@ func ExtractEmojis(text string) []string {
 
 // GetMessageLink returns a URL for the given message
 func GetMessageLink(guild_id string, channel_id string, message_id string) string {
-    return discordgo.EndpointDiscord + "/channels/" + guild_id + "/" + channel_id + "/" + message_id
+    return discordgo.EndpointDiscord + "channels/" + guild_id + "/" + channel_id + "/" + message_id
 }
 
 // GetName returns the most appropriate available name for a given user
