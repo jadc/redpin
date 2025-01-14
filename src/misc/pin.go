@@ -50,7 +50,7 @@ func PinMessage(discord *discordgo.Session, webhook *discordgo.Webhook, msg *dis
 
     // Only throw up error if it's an actual error (not just row not found)
     if err != nil && err != sql.ErrNoRows {
-        return "", "", fmt.Errorf("Failed to retrieve pin id for message with ID %s: %v", msg.ID, err)
+        return "", "", fmt.Errorf("Failed to retrieve pin id for message '%s': %v", msg.ID, err)
     }
 
     // Return existing pin_id if it exists
