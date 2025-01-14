@@ -92,7 +92,7 @@ func PinMessage(discord *discordgo.Session, webhook *discordgo.Webhook, msg *dis
     }
 
     // Send footer
-    params.Content = fmt.Sprintf("-# %s %s", GetMessageLink(webhook.GuildID, msg.ChannelID, msg.ID), msg.Author.Mention())
+    params.Content = "-# " + GetMessageLink(webhook.GuildID, msg.ChannelID, msg.ID) + " " + msg.Author.Mention()
     _, err = discord.WebhookExecute(webhook.ID, webhook.Token, true, params)
     if err != nil {
         return "", "", fmt.Errorf("Failed to send pin footer: %v", err)

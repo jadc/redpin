@@ -59,7 +59,7 @@ var command_config_main = Command{
                         Fields: []*discordgo.MessageEmbedField{
                             {
                                 Name: "Current Config",
-                                Value: fmt.Sprintf("```json\n%s\n```", string(j)),
+                                Value: "```json\n" + string(j) + "\n```",
                             },
                         },
                     },

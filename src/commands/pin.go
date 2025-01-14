@@ -48,7 +48,7 @@ var command_pin = Command{
 
         if err != nil {
             log.Printf("Failed to pin message '%s': %v", selected_msg.ID, err)
-            embeds[0].Title = fmt.Sprintf(":x:  Failed to pin %s", msg_link)
+            embeds[0].Title = ":x:  Failed to pin " + msg_link
             embeds[0].Fields = append(embeds[0].Fields, &discordgo.MessageEmbedField{
                 Name: "Reason",
                 Value: fmt.Sprintf("```%v```", err),
