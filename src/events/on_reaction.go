@@ -23,7 +23,8 @@ func onReaction(discord *discordgo.Session, event *discordgo.MessageReactionAdd)
 
     message, err := discord.ChannelMessage(reaction.ChannelID, reaction.MessageID)
     if err != nil {
-        log.Printf("Failed to fetch message with ID %s: %v", reaction.MessageID, err)
+        log.Printf("Failed to fetch message '%s': %v", reaction.MessageID, err)
+        return
     }
 
     // Update selfpin map on reaction add
@@ -38,6 +39,7 @@ func onReaction(discord *discordgo.Session, event *discordgo.MessageReactionAdd)
     db, err := database.Connect()
     if err != nil {
         log.Printf("Failed to connect to database: %v", err)
+        return
     }
     c := db.GetConfig(event.GuildID)
 
@@ -56,7 +58,7 @@ func onReaction(discord *discordgo.Session, event *discordgo.MessageReactionAdd)
     }
 
     // Get the current webhook
-    webhook, err := misc.GetWebhook(discord, event.GuildID, message.Author.ID)
+    webhook, err := misc.GetWebhook(discord, event.GuildID)
     if err != nil {
         log.Printf("Failed to retrieve webhook: %v", err)
         return
@@ -65,7 +67,7 @@ func onReaction(discord *discordgo.Session, event *discordgo.MessageReactionAdd)
     // If reaching this far, pin the message
     _, _, err = misc.PinMessage(discord, webhook, message, 0)
     if err != nil {
-        log.Printf("Failed to pin message with ID %s: %v", message.ID, err)
+        log.Printf("Failed to pin message '%s': %v", message.ID, err)
         return
     }
 
@@ -83,7 +85,8 @@ func onReactionRemove(discord *discordgo.Session, event *discordgo.MessageReacti
         reaction := event.MessageReaction
         message, err := discord.ChannelMessage(reaction.ChannelID, reaction.MessageID)
         if err != nil {
-            log.Printf("Failed to fetch message with ID %s: %v", reaction.MessageID, err)
+            log.Printf("Failed to fetch message '%s': %v", reaction.MessageID, err)
+            return
         }
 
         if reaction.UserID == message.Author.ID {
