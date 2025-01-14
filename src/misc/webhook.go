@@ -130,13 +130,17 @@ func createWebhook(discord *discordgo.Session, guild_id string, channel_id strin
 
 // cloneMessage recreates the given message into the given webhook with the given base parameters
 // Returns the message object that the webhook sent (not including header/footer/attachment messages)
-func cloneMessage(discord *discordgo.Session, msg *discordgo.Message, webhook *discordgo.Webhook, base *discordgo.WebhookParams) (*discordgo.Message, error) {
+func cloneMessage(discord *discordgo.Session, msg *discordgo.Message, webhook *discordgo.Webhook, base *discordgo.WebhookParams, ref_header string) (*discordgo.Message, error) {
     var pin_msg *discordgo.Message
     skip := false
 
     // Create copy of message as webhook parameters
     params := *base
-    params.Content = msg.Content
+    if len(ref_header) > 0 {
+        params.Content = ref_header + "\n" + msg.Content
+    } else {
+        params.Content = msg.Content
+    }
     params.Components = msg.Components
 
     // Only copy rich embeds, not embeds from links (Discord will add them itself)
@@ -302,4 +306,22 @@ func sizeLimit(discord *discordgo.Session, guild_id string) (int, error) {
     }
 
     return mb * 1024 * 1024, nil
+}
+
+// createReferenceHeader returns a string containing a stylized message reference, used for pins that are replies
+func createReferenceHeader(discord *discordgo.Session, webhook *discordgo.Webhook, ref *discordgo.MessageReference, depth int) (string, error) {
+    // Get the referenced message
+    ref_msg, err := discord.ChannelMessage(ref.ChannelID, ref.MessageID)
+    if err != nil {
+        return "", fmt.Errorf("Failed to fetch referenced message: %v", err)
+    }
+
+    // Pin the referenced message if the recursion depth has not been reached
+    ref_pin_channel_id, ref_pin_msg_id, err := PinMessage(discord, webhook, ref_msg, depth)
+    if err != nil {
+        return "", fmt.Errorf("Failed to pin referenced message: %v", err)
+    }
+
+    // Return formatted link to pinned referenced message
+    return "-# ╰ Reply to " + GetMessageLink(webhook.GuildID, ref_pin_channel_id, ref_pin_msg_id), nil
 }
