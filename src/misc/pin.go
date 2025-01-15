@@ -24,7 +24,7 @@ var (
 
 // PinMessage pins a message, forwarding it to the pin channel
 // Returns the used pin channel ID and pin message's ID if successful
-func PinMessage(discord *discordgo.Session, webhook *discordgo.Webhook, msg *discordgo.Message, depth int) (string, string, error) {
+func PinMessage(discord *discordgo.Session, guild_id string, msg *discordgo.Message, depth int) (string, string, error) {
     // Skip messages that cannot feasibly be pinned
     if _, ok := VALID_MSG_TYPE[msg.Type]; !ok {
         return "", "", fmt.Errorf("This type of message cannot be pinned")
@@ -38,7 +38,7 @@ func PinMessage(discord *discordgo.Session, webhook *discordgo.Webhook, msg *dis
         }
     }
 
-    log.Printf("Pinning message '%s' in guild '%s'", msg.ID, webhook.GuildID)
+    log.Printf("Pinning message '%s' in guild '%s'", msg.ID, guild_id)
 
     db, err := database.Connect()
     if err != nil {
@@ -46,7 +46,7 @@ func PinMessage(discord *discordgo.Session, webhook *discordgo.Webhook, msg *dis
     }
 
     // Query database for if message is already pinned
-    pin_channel_id, pin_id, err := db.GetPin(webhook.GuildID, msg.ID)
+    pin_channel_id, pin_id, err := db.GetPin(guild_id, msg.ID)
 
     // Only throw up error if it's an actual error (not just row not found)
     if err != nil && err != sql.ErrNoRows {
@@ -59,7 +59,13 @@ func PinMessage(discord *discordgo.Session, webhook *discordgo.Webhook, msg *dis
     }
 
     // Get config
-    c := db.GetConfig(webhook.GuildID)
+    c := db.GetConfig(guild_id)
+
+    // Get the current webhook
+    webhook, err := GetWebhook(discord, guild_id)
+    if err != nil {
+        return "", "", fmt.Errorf("Failed to retrieve webhook: %v", err)
+    }
 
     // Create base webhook params
     params := &discordgo.WebhookParams{
@@ -70,7 +76,7 @@ func PinMessage(discord *discordgo.Session, webhook *discordgo.Webhook, msg *dis
         AllowedMentions: &discordgo.MessageAllowedMentions{},
     }
     if a := msg.Author; a != nil {
-        if member, err := discord.GuildMember(webhook.GuildID, a.ID); err == nil {
+        if member, err := discord.GuildMember(guild_id, a.ID); err == nil {
             params.Username = GetName(member)
             params.AvatarURL = member.AvatarURL("")
         }
@@ -92,7 +98,7 @@ func PinMessage(discord *discordgo.Session, webhook *discordgo.Webhook, msg *dis
     }
 
     // Send footer
-    params.Content = "-# " + GetMessageLink(webhook.GuildID, msg.ChannelID, msg.ID) + " " + msg.Author.Mention()
+    params.Content = "-# " + GetMessageLink(guild_id, msg.ChannelID, msg.ID) + " " + msg.Author.Mention()
     _, err = discord.WebhookExecute(webhook.ID, webhook.Token, true, params)
     if err != nil {
         return "", "", fmt.Errorf("Failed to send pin footer: %v", err)
@@ -104,7 +110,7 @@ func PinMessage(discord *discordgo.Session, webhook *discordgo.Webhook, msg *dis
     }
 
     // Add pin message to database
-    err = db.AddPin(webhook.GuildID, c.Channel, msg.ID, pin_msg.ID)
+    err = db.AddPin(guild_id, c.Channel, msg.ID, pin_msg.ID)
     if err != nil {
         return "", "", fmt.Errorf("Failed to add pin to database: %v", err)
     }
