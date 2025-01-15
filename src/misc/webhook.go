@@ -310,23 +310,14 @@ func createReferenceHeader(discord *discordgo.Session, webhook *discordgo.Webhoo
         return fmt.Errorf("Failed to fetch referenced message: %v", err)
     }
 
-    // Get a new webhook for pinning the referenced message
-    // If getting a new webhook fails somehow, use the existing one
-    new_webhook, err := GetWebhook(discord, webhook.GuildID)
-    if err != nil {
-        new_webhook = webhook
-    }
-
     // Pin the referenced message
-    ref_pin_channel_id, ref_pin_msg_id, err := PinMessage(discord, new_webhook, ref_msg, depth)
+    ref_pin_channel_id, ref_pin_msg_id, err := PinMessage(discord, webhook.GuildID, ref_msg, depth)
     if err != nil {
         return fmt.Errorf("Failed to pin referenced message: %v", err)
     }
 
     // Return formatted link to pinned referenced message
-    ref_header := "-# ╰ Reply to " + GetMessageLink(webhook.GuildID, ref_pin_channel_id, ref_pin_msg_id)
-
-    params.Content = ref_header
+    params.Content = "-# ╰ Reply to " + GetMessageLink(webhook.GuildID, ref_pin_channel_id, ref_pin_msg_id)
     _, err = discord.WebhookExecute(webhook.ID, webhook.Token, true, params)
     if err != nil {
         return fmt.Errorf("Failed to send pin footer: %v", err)
