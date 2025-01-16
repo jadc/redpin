@@ -8,7 +8,7 @@ import (
 func RegisterAll(discord *discordgo.Session) {
     // Log bot status
     discord.AddHandler(func(d *discordgo.Session, r *discordgo.Ready) {
-		log.Printf("Logged in as: %v#%v", d.State.User.Username, d.State.User.Discriminator)
+		log.Printf("%v#%v is online. Press CTRL + C to exit.", d.State.User.Username, d.State.User.Discriminator)
 	})
 
     // Register event handlers

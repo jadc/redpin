@@ -8,6 +8,7 @@ import (
 
     "github.com/jadc/redpin/events"
     "github.com/jadc/redpin/commands"
+    "github.com/jadc/redpin/misc"
 )
 
 func main(){
@@ -39,10 +40,17 @@ func main(){
         log.Print("Failed to register custom commands: ", err)
     }
 
+    // Open a thread to constantly consume new pin requests
+    misc.Queue = misc.NewQueue()
+    go func() {
+        for {
+            misc.Queue.Execute(discord)
+        }
+    }()
+
     // Keep thread running until CTRL + C
     block := make(chan os.Signal, 1)
     signal.Notify(block, os.Interrupt)
-    log.Println("redpin is online. Press CTRL + C to exit.")
     <-block
     log.Println("Shutting down...")
 }
