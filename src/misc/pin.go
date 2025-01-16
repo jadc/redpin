@@ -7,7 +7,6 @@ import (
     "log"
     "net/http"
     "strings"
-    "sync"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/jadc/redpin/database"
@@ -31,6 +30,7 @@ type PinRequest struct {
     reference *PinRequest
 }
 
+// CreatePinRequest creates a copy of the message, and all messages it references, in its current state
 func CreatePinRequest(discord *discordgo.Session, guild_id string, message *discordgo.Message) (*PinRequest, error) {
     defer log.Printf("Created new pin request for message '%s' in guild '%s'", message.ID, guild_id)
 
@@ -50,10 +50,8 @@ func CreatePinRequest(discord *discordgo.Session, guild_id string, message *disc
     req := &PinRequest{ guildID: guild_id, message: message }
 
     if c.ReplyDepth > 0 && message.MessageReference != nil {
-        var chain *PinRequest
-
         // Iteratively create pin requests for any messages this one references
-        curr, depth := chain, 0
+        curr, depth := req, 0
         for ref := message.MessageReference; ref != nil && depth < c.ReplyDepth; ref = req.reference.message.MessageReference {
             // Fetch message that is being referenced
             ref_msg, err := discord.ChannelMessage(ref.ChannelID, ref.MessageID)
@@ -63,7 +61,7 @@ func CreatePinRequest(discord *discordgo.Session, guild_id string, message *disc
             }
 
             // Create pin request for said message
-            req.reference = &PinRequest{
+            curr.reference = &PinRequest{
                 guildID: guild_id,
                 message: ref_msg,
             }
@@ -72,22 +70,14 @@ func CreatePinRequest(discord *discordgo.Session, guild_id string, message *disc
             curr = curr.reference
             depth += 1
         }
-
-        // Attach linked list of pin requests to original
-        req.reference = chain
     }
 
     return req, nil
 }
 
-// PinMessage pins a message, forwarding it to the pin channel
+// Execute on a PinRequest pins the message, forwarding it to the pin channel
 // Returns the used pin channel ID and pin message's ID if successful
-var execute_lock sync.Mutex
 func (req *PinRequest) Execute(discord *discordgo.Session) (string, string, error) {
-    // Ensure only one pin is executed at a time
-    execute_lock.Lock()
-    defer execute_lock.Unlock()
-
     log.Printf("Pinning message '%s' in guild '%s'", req.message.ID, req.guildID)
 
     db, err := database.Connect()
@@ -173,25 +163,6 @@ func (req *PinRequest) Execute(discord *discordgo.Session) (string, string, erro
     }
 
     return pin_msg.ChannelID, pin_msg.ID, nil
-}
-
-type PinQueue struct {
-    queue []*PinRequest
-    lock sync.Mutex
-}
-
-func (q *PinQueue) Enqueue(req *PinRequest) {
-    q.lock.Lock()
-    defer q.lock.Unlock()
-    q.queue = append(q.queue, req)
-}
-
-func (q *PinQueue) Pop(req *PinRequest) *PinRequest {
-    q.lock.Lock()
-    defer q.lock.Unlock()
-    top, rest := q.queue[0], q.queue[1:]
-    q.queue = rest
-    return top
 }
 
 // cloneMessage recreates the given message into the given webhook with the given base parameters
