@@ -169,6 +169,7 @@ func (req *PinRequest) Execute(discord *discordgo.Session) (string, string, erro
     if err != nil {
         return "", "", fmt.Errorf("Failed to add pin to database: %v", err)
     }
+    delete(pinning, req.message.ID)
 
     return pin_msg.ChannelID, pin_msg.ID, nil
 }
