@@ -100,14 +100,6 @@ func CreatePinRequest(discord *discordgo.Session, guild_id string, message *disc
 // Execute on a PinRequest pins the message, forwarding it to the pin channel
 // Returns the used pin channel ID and pin message's ID if successful
 func (req *PinRequest) Execute(discord *discordgo.Session) (string, string, error) {
-    log.Printf("Pinning message '%s' in guild '%s'", req.message.ID, req.guildID)
-
-    // Get the current webhook
-    webhook, err := GetWebhook(discord, req.guildID)
-    if err != nil {
-        return "", "", fmt.Errorf("Failed to retrieve webhook: %v", err)
-    }
-
     // Create base webhook params
     params := &discordgo.WebhookParams{
         Username: "Unknown",
@@ -124,15 +116,20 @@ func (req *PinRequest) Execute(discord *discordgo.Session) (string, string, erro
     }
 
     // If the message being pinned is a reply, pin the referenced message first
+    ref_pin_channel_id, ref_pin_msg_id := "", ""
     if req.reference != nil {
-        // Pin the referenced message
-        ref_pin_channel_id, ref_pin_msg_id, err := req.reference.Execute(discord)
-        if err != nil {
-            return "", "", fmt.Errorf("Failed to pin referenced message: %v", err)
-        }
+        ref_pin_channel_id, ref_pin_msg_id, _ = req.reference.Execute(discord)
+    }
 
-        // Return formatted link to pinned referenced message
-        params.Content = "-# ╰ Reply to " + GetMessageLink(webhook.GuildID, ref_pin_channel_id, ref_pin_msg_id)
+    // Get the current webhook
+    webhook, err := GetWebhook(discord, req.guildID)
+    if err != nil {
+        return "", "", fmt.Errorf("Failed to retrieve webhook: %v", err)
+    }
+
+    // Send formatted link to pinned referenced message (if there is one)
+    if ref_pin_channel_id != "" && ref_pin_msg_id != "" {
+        params.Content = "-# ╰ Reply to " + GetMessageLink(req.guildID, ref_pin_channel_id, ref_pin_msg_id)
         _, err = discord.WebhookExecute(webhook.ID, webhook.Token, true, params)
         if err != nil {
             return "", "", fmt.Errorf("Failed to send reference header: %v", err)
