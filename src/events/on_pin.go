@@ -26,18 +26,14 @@ func onPin(discord *discordgo.Session, event *discordgo.ChannelPinsUpdate) {
         return
     }
 
-    // Get the current webhook
-    webhook, err := misc.GetWebhook(discord, event.GuildID)
-    if err != nil {
-        return
-    }
-
     // Pin the message that was just pinned
     real_pin := pins[0]
     if real_pin != nil {
-        _, _, err = misc.PinMessage(discord, webhook, real_pin, 0)
+        req, err := misc.CreatePinRequest(discord, event.GuildID, real_pin)
         if err != nil {
-            log.Printf("Failed to pin real pin '%s': %v", real_pin.ID, err)
+            log.Printf("Failed to create pin request for message '%s': %v", real_pin.ID, err)
+            return
         }
+        misc.Queue.Push(req)
     }
 }

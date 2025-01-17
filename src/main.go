@@ -3,11 +3,11 @@ package main
 import (
     "os"
     "log"
-    "os/signal"
-    "github.com/bwmarrin/discordgo"
 
+    "github.com/bwmarrin/discordgo"
     "github.com/jadc/redpin/events"
     "github.com/jadc/redpin/commands"
+    "github.com/jadc/redpin/misc"
 )
 
 func main(){
@@ -39,10 +39,13 @@ func main(){
         log.Print("Failed to register custom commands: ", err)
     }
 
-    // Keep thread running until CTRL + C
-    block := make(chan os.Signal, 1)
-    signal.Notify(block, os.Interrupt)
-    log.Println("redpin is online. Press CTRL + C to exit.")
-    <-block
-    log.Println("Shutting down...")
+    // Constantly check and consume new pin requests
+    misc.Queue = misc.NewQueue()
+    for {
+        log.Print("Listening for pin requests...")
+        _, _, err := misc.Queue.Execute(discord)
+        if err != nil {
+            log.Print(err)
+        }
+    }
 }
