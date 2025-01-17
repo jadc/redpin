@@ -36,8 +36,6 @@ var pinning = make(map[string]struct{})
 
 // CreatePinRequest creates a copy of the message, and all messages it references, in its current state
 func CreatePinRequest(discord *discordgo.Session, guild_id string, message *discordgo.Message) (*PinRequest, error) {
-    defer log.Printf("Created new pin request for message '%s' in guild '%s'", message.ID, guild_id)
-
     // Skip messages that cannot feasibly be pinned
     if _, ok := VALID_MSG_TYPE[message.Type]; !ok {
         return nil, fmt.Errorf("This type of message cannot be pinned")
@@ -95,6 +93,7 @@ func CreatePinRequest(discord *discordgo.Session, guild_id string, message *disc
         }
     }
 
+    log.Printf("Created new pin request for message '%s' in guild '%s'", message.ID, guild_id)
     return req, nil
 }
 
@@ -171,6 +170,7 @@ func (req *PinRequest) Execute(discord *discordgo.Session) (string, string, erro
     }
     delete(pinning, req.message.ID)
 
+    log.Printf("Pinned message '%s' in guild '%s'", req.message.ID, req.guildID)
     return pin_msg.ChannelID, pin_msg.ID, nil
 }
 

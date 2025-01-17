@@ -43,6 +43,9 @@ func main(){
     misc.Queue = misc.NewQueue()
     for {
         log.Print("Listening for pin requests...")
-        misc.Queue.Execute(discord)
+        _, _, err := misc.Queue.Execute(discord)
+        if err != nil {
+            log.Print(err)
+        }
     }
 }
