@@ -54,19 +54,6 @@ func CreatePinRequest(discord *discordgo.Session, guild_id string, message *disc
     }
     c := db.GetConfig(guild_id)
 
-    // Query database for if message is already pinned
-    a, b, err := db.GetPin(guild_id, message.ID)
-
-    // Only throw up error if it's an actual error (not just row not found)
-    if err != nil && err != sql.ErrNoRows {
-        return nil, fmt.Errorf("Failed to fetch pin id for message '%s': %v", message.ID, err)
-    }
-
-    // Abort if message is already pinned
-    if len(a) != 0 || len(b) != 0 {
-        return nil, ALREADY_PINNED
-    }
-
     // Create pin request
     req := &PinRequest{ guildID: guild_id, message: message }
 
@@ -100,6 +87,24 @@ func CreatePinRequest(discord *discordgo.Session, guild_id string, message *disc
 // Execute on a PinRequest pins the message, forwarding it to the pin channel
 // Returns the used pin channel ID and pin message's ID if successful
 func (req *PinRequest) Execute(discord *discordgo.Session) (string, string, error) {
+    db, err := database.Connect()
+    if err != nil {
+        return "", "", fmt.Errorf("Failed to connect to database: %v", err)
+    }
+
+    // Query database for if message is already pinned
+    pin_channel_id, pin_msg_id, err := db.GetPin(req.guildID, req.message.ID)
+
+    // Only throw up error if it's an actual error (not just row not found)
+    if err != nil && err != sql.ErrNoRows {
+        return "", "", fmt.Errorf("Failed to fetch pin id for message '%s': %v", req.message.ID, err)
+    }
+
+    // Return IDs for existing message if it is already pinned
+    if len(pin_channel_id) != 0 && len(pin_msg_id) != 0 {
+        return pin_channel_id, pin_msg_id, ALREADY_PINNED
+    }
+
     // Create base webhook params
     params := &discordgo.WebhookParams{
         Username: "Unknown",
@@ -155,12 +160,7 @@ func (req *PinRequest) Execute(discord *discordgo.Session) (string, string, erro
     }
 
     // Add pin message to database
-    db, err := database.Connect()
-    if err != nil {
-        return "", "", fmt.Errorf("Failed to connect to database: %v", err)
-    }
     c := db.GetConfig(req.guildID)
-
     err = db.AddPin(req.guildID, c.Channel, req.message.ID, pin_msg.ID)
     if err != nil {
         return "", "", fmt.Errorf("Failed to add pin to database: %v", err)
