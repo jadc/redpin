@@ -37,15 +37,20 @@ var command_pin = Command{
             Type: discordgo.InteractionResponseChannelMessageWithSource,
             Data: &discordgo.InteractionResponseData{ Embeds: embeds },
         })
-        var pin_channel_id string
-        var pin_msg_id string
 
-        // Get the current webhook
-        webhook, err := misc.GetWebhook(discord, i.GuildID)
-        if err == nil {
-            pin_channel_id, pin_msg_id, err = misc.PinMessage(discord, webhook, selected_msg, 0)
+        // Pin the selected message (skipping queue)
+        req, err := misc.CreatePinRequest(discord, i.GuildID, selected_msg)
+        if err != nil {
+            log.Printf("Failed to create pin request for message '%s': %v", selected_msg.ID, err)
+            return
+        }
+        pin_channel_id, pin_msg_id, err := req.Execute(discord)
+        if err != nil {
+            log.Printf("Failed to pin message '%s': %v", selected_msg.ID, err)
+            return
         }
 
+        // Send a response based on the state of the pin
         if err != nil {
             log.Printf("Failed to pin message '%s': %v", selected_msg.ID, err)
             embeds[0].Title = ":x:  Failed to pin " + msg_link

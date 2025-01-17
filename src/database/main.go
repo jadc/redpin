@@ -36,6 +36,9 @@ func Connect() (*database, error) {
             log.Fatal("Failed to create SQLite connection: ", err)
         }
 
+        // Limit writes to one at a time (not ideal)
+        instance.SetMaxOpenConns(1)
+
         // Assign to global variable
         err = instance.Ping()
         db = &database{instance, make(map[string]*Config)}
