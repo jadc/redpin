@@ -30,6 +30,10 @@ type PinRequest struct {
     reference *PinRequest
 }
 
+// Hashset of messages currently being pinned
+// Helps prevent rapid reactions from pinning a message twice
+var pinning = make(map[string]struct{})
+
 // CreatePinRequest creates a copy of the message, and all messages it references, in its current state
 func CreatePinRequest(discord *discordgo.Session, guild_id string, message *discordgo.Message) (*PinRequest, error) {
     defer log.Printf("Created new pin request for message '%s' in guild '%s'", message.ID, guild_id)
@@ -39,12 +43,31 @@ func CreatePinRequest(discord *discordgo.Session, guild_id string, message *disc
         return nil, fmt.Errorf("This type of message cannot be pinned")
     }
 
+    // Skip messages currently being pinned
+    if _, ok := pinning[message.ID]; ok {
+        return nil, ALREADY_PINNED
+    }
+    pinning[message.ID] = struct{}{}
+
     // Retrieve current config
     db, err := database.Connect()
     if err != nil {
         return nil, fmt.Errorf("Failed to connect to database: %v", err)
     }
     c := db.GetConfig(guild_id)
+
+    // Query database for if message is already pinned
+    a, b, err := db.GetPin(guild_id, message.ID)
+
+    // Only throw up error if it's an actual error (not just row not found)
+    if err != nil && err != sql.ErrNoRows {
+        return nil, fmt.Errorf("Failed to fetch pin id for message '%s': %v", message.ID, err)
+    }
+
+    // Abort if message is already pinned
+    if len(a) != 0 || len(b) != 0 {
+        return nil, ALREADY_PINNED
+    }
 
     // Create pin request
     req := &PinRequest{ guildID: guild_id, message: message }
@@ -79,27 +102,6 @@ func CreatePinRequest(discord *discordgo.Session, guild_id string, message *disc
 // Returns the used pin channel ID and pin message's ID if successful
 func (req *PinRequest) Execute(discord *discordgo.Session) (string, string, error) {
     log.Printf("Pinning message '%s' in guild '%s'", req.message.ID, req.guildID)
-
-    db, err := database.Connect()
-    if err != nil {
-        return "", "", fmt.Errorf("Failed to connect to database: %v", err)
-    }
-
-    // Query database for if message is already pinned
-    pin_channel_id, pin_id, err := db.GetPin(req.guildID, req.message.ID)
-
-    // Only throw up error if it's an actual error (not just row not found)
-    if err != nil && err != sql.ErrNoRows {
-        return "", "", fmt.Errorf("Failed to retrieve pin id for message '%s': %v", req.message.ID, err)
-    }
-
-    // Return existing pin_id if it exists
-    if len(pin_channel_id) > 0 && len(pin_id) > 0 {
-        return pin_channel_id, pin_id, ALREADY_PINNED
-    }
-
-    // Get config
-    c := db.GetConfig(req.guildID)
 
     // Get the current webhook
     webhook, err := GetWebhook(discord, req.guildID)
@@ -157,6 +159,12 @@ func (req *PinRequest) Execute(discord *discordgo.Session) (string, string, erro
     }
 
     // Add pin message to database
+    db, err := database.Connect()
+    if err != nil {
+        return "", "", fmt.Errorf("Failed to connect to database: %v", err)
+    }
+    c := db.GetConfig(req.guildID)
+
     err = db.AddPin(req.guildID, c.Channel, req.message.ID, pin_msg.ID)
     if err != nil {
         return "", "", fmt.Errorf("Failed to add pin to database: %v", err)
