@@ -13,6 +13,8 @@ func registerPin() error {
     sig := &discordgo.ApplicationCommand{
         Name: "Pin Message",
         Type: discordgo.MessageApplicationCommand,
+        DefaultMemberPermissions: &permission,
+        DMPermission: &dmPermission,
     }
     signatures = append(signatures, sig)
     handlers[sig.Name] = make(map[string]func(discord *discordgo.Session, option int, i *discordgo.InteractionCreate))
