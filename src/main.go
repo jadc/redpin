@@ -45,7 +45,7 @@ func main(){
         log.Print("Listening for pin requests...")
         _, _, err := misc.Queue.Execute(discord)
         if err != nil {
-            log.Print(err)
+            log.Printf("Error thrown during queue pop: %v", err)
         }
     }
 }

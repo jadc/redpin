@@ -6,11 +6,17 @@ import (
     "github.com/bwmarrin/discordgo"
 )
 
-var index = 0
-var signatures = []*discordgo.ApplicationCommand{};
+var (
+    index = 0
+    signatures = []*discordgo.ApplicationCommand{};
 
-// map[command_name][subcommand_name (if applicable, o.w. "")] = handler
-var handlers = map[string]map[string]func(discord *discordgo.Session, option int, i *discordgo.InteractionCreate){}
+    // map[command_name][subcommand_name (if applicable, o.w. "")] = handler
+    handlers = map[string]map[string]func(discord *discordgo.Session, option int, i *discordgo.InteractionCreate){}
+
+    // Permissions
+    permission int64 = discordgo.PermissionManageMessages
+    dmPermission = false
+)
 
 func RegisterAll(discord *discordgo.Session) error {
     // Populate signature

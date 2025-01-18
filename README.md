@@ -26,8 +26,6 @@ This repository contains the modern rewrite and expansion of **redpin** in the G
         - [x] Allow self-pins
         - [x] Select which emojis pin messages
     - [x] Pins preserve attachments when possible
-- [ ] Implement nice-to-haves
-    - [ ] Emoji-themed pin channels
     - [x] Leaderboard for users with most pins (and emojis used)
 - [ ] Write tests
 - [x] Write CI/CD pipeline for automatic building and running tests
