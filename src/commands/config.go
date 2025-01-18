@@ -15,6 +15,8 @@ func registerConfig() error {
         Name: "redpin",
         Description: "Execute with no arguments to view current config",
         Options: []*discordgo.ApplicationCommandOption{},
+        DefaultMemberPermissions: &permission,
+        DMPermission: &dmPermission,
     }
     signatures = append(signatures, sig)
     handlers[sig.Name] = make(map[string]func(discord *discordgo.Session, option int, i *discordgo.InteractionCreate))
