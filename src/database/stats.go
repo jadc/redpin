@@ -103,8 +103,6 @@ func (db *database) GetLeaderboard(guild_id string) ([]*UserStats, error) {
         return nil, err
     }
 
-    stats_list := []*UserStats{}
-
     // Get top ten users
     query := fmt.Sprintf(`
         SELECT user_id, COUNT(*) as count
@@ -116,21 +114,26 @@ func (db *database) GetLeaderboard(guild_id string) ([]*UserStats, error) {
     if err != nil {
         return nil, err
     }
-    defer rows.Close()
 
-    // Get statistics for each user
+    // Get top 10 user IDs
+    var users []string
     for rows.Next() {
         var user_id string
         var count int
         if err := rows.Scan(&user_id, &count); err != nil {
             return nil, err
         }
+        users = append(users, user_id)
+    }
+    rows.Close()
 
+    // Get detailed stats for each user
+    stats_list := []*UserStats{}
+    for _, user_id := range users {
         stats, err := db.GetStats(guild_id, user_id);
         if err != nil {
             return nil, err
         }
-
         stats_list = append(stats_list, stats)
     }
 

@@ -21,6 +21,7 @@ func registerStats() error {
         Name: "stats",
         Description: "Displays the top 10 members with the most pins",
         Options: []*discordgo.ApplicationCommandOption{},
+        DMPermission: &dmPermission,
     }
     signatures = append(signatures, sig)
     handlers[sig.Name] = make(map[string]func(discord *discordgo.Session, option int, i *discordgo.InteractionCreate))
