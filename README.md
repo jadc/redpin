@@ -15,15 +15,18 @@ This repository contains the modern rewrite and expansion of **redpin** in the G
 ## Installation
 The recommended way of hosting is using [Docker](https://www.docker.com/).
 1. Clone this repository.
+   
    ```sh
    git clone https://github.com/jadc/redpin.git
    ```
 2. Create an environment file named `.env` with the following contents.
+   
    ```
    DISCORD_TOKEN=<discord token here>
    DB_FILE=[optional, path to database file]
    ```
 3. Run the container using Docker Compose.
+   
    ```sh
    docker compose up
    ```
