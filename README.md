@@ -12,6 +12,24 @@ TODO
 
 This repository contains the modern rewrite and expansion of **redpin** in the Go. If you are looking for the original Python version, see [redpin-py](https://github.com/jadc/redpin-py); I rewrote this bot to practice interfacing with databases and APIs, routing packets, responding to asynchronous events, and generally extend the features of this bot significantly past its current form and existing (free and paid) offerings.
 
+## Installation
+The recommended way of hosting is using [Docker](https://www.docker.com/).
+1. Clone this repository.
+   ```sh
+   git clone https://github.com/jadc/redpin.git
+   ```
+2. Create an environment file named `.env` with the following contents.
+   ```
+   DISCORD_TOKEN=<discord token here>
+   DB_FILE=[optional, path to database file]
+   ```
+3. Run the container using Docker Compose.
+   ```sh
+   docker compose up
+   ```
+
+Of course, you can host it without Docker. If you want to do it that way, you probably know how. :)
+
 ## TODO
 
 - [x] Implement core functionality
@@ -29,6 +47,6 @@ This repository contains the modern rewrite and expansion of **redpin** in the G
     - [x] Leaderboard for users with most pins (and emojis used)
 - [ ] Write tests
 - [x] Write CI/CD pipeline for automatic building and running tests
-- [ ] Write Dockerfile for production deployment
+- [x] Write Dockerfile for production deployment
 - [x] Write Nix Shell for development environment
 - [ ] Showcase bot in [Tour](#Tour)

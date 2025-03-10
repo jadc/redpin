@@ -25,8 +25,8 @@ func Connect() (*database, error) {
     once.Do(func(){
         // Retrieve file name from the environment
         database_url := "data.db"
-        if x := os.Getenv("SQLITE_FILE_NAME"); x != "" {
-            log.Println("Using environmental variable 'SQLITE_FILE_NAME' for database name.")
+        if x := os.Getenv("DB_FILE"); x != "" {
+            log.Println("Using environmental variable 'DB_FILE' for database name.")
             database_url = x
         }
 
