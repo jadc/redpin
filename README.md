@@ -13,6 +13,7 @@ TODO
 This repository contains the modern rewrite and expansion of **redpin** in the Go. If you are looking for the original Python version, see [redpin-py](https://github.com/jadc/redpin-py); I rewrote this bot to practice interfacing with databases and APIs, routing packets, responding to asynchronous events, and generally extend the features of this bot significantly past its current form and existing (free and paid) offerings.
 
 ## Installation
+### Docker
 The recommended way of hosting is using [Docker](https://www.docker.com/).
 1. Clone this repository.
    
@@ -31,7 +32,17 @@ The recommended way of hosting is using [Docker](https://www.docker.com/).
    docker compose up
    ```
 
-Of course, you can host it without Docker. If you want to do it that way, you probably know how. :)
+### Manual
+The latest build of redpin can be found in the Actions tab.
+
+Simply run `./redpin` with at least the `DISCORD_TOKEN` environmental variable set.
+
+```
+DISCORD_TOKEN="<discord token here>" ./redpin
+```
+
+## Contributing
+See [CONTRIBUTING.md](CONTRIBUTING.md).
 
 ## TODO
 
