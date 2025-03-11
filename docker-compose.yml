@@ -1,0 +1,9 @@
+services:
+    redpin:
+        container_name: redpin
+        restart: unless-stopped
+        env_file: .env
+        build:
+            context: .
+        volumes:
+            - ./data.db:/data.db
