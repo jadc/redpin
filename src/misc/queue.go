@@ -34,7 +34,6 @@ func (q *PinQueue) Push(req *PinRequest) {
 
 func (q *PinQueue) Execute(discord *discordgo.Session) (string, string, error)  {
     q.lock.Lock()
-    defer q.lock.Unlock()
 
     // Block if queue is empty
     for len(q.queue) == 0 {
@@ -44,6 +43,8 @@ func (q *PinQueue) Execute(discord *discordgo.Session) (string, string, error)  
     // Pop from queue
     top, rest := q.queue[0], q.queue[1:]
     q.queue = rest
+
+    q.lock.Unlock()
 
     // Execute pin request
     return top.Execute(discord)
