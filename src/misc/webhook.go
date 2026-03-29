@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
     "log"
+    "sync"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/jadc/redpin/database"
@@ -25,15 +26,18 @@ type WebhookPair struct {
 // Technically, if the bot is restarted, the LRU bit is reset and
 // messages may get merged, but this is a very unlikely scenario
 var webhooks = make(map[string]*WebhookPair)
+var webhooksMu sync.Mutex
 
-// GetWebhook returns the appropriate webhook ID for a given guild
+// GetWebhook returns the appropriate webhook for a given guild
 func GetWebhook(discord *discordgo.Session, guild_id string) (*discordgo.Webhook, error) {
+    webhooksMu.Lock()
+    defer webhooksMu.Unlock()
+
     db := database.Connect()
     c := db.GetConfig(guild_id)
 
-    // Attempt to read from cache
     if pair, ok := webhooks[guild_id]; ok {
-        // Create new webhooks, and delete the old ones, if expired
+		// Recreate cached webhooks if pin channel has changed
         if pair.WebhookA.ChannelID != c.Channel || pair.WebhookB.ChannelID != c.Channel {
             discord.WebhookDelete(pair.WebhookA.ID)
             discord.WebhookDelete(pair.WebhookB.ID)
@@ -45,50 +49,55 @@ func GetWebhook(discord *discordgo.Session, guild_id string) (*discordgo.Webhook
             }
         }
 
-        // Alternate between the two webhooks
-        pair.LRU = !pair.LRU
-        if pair.LRU {
-            return pair.WebhookB, nil
-        } else {
-            return pair.WebhookA, nil
-        }
+		// Otherwise, use other webhook in cached pair
+        return alternateWebhook(pair), nil
     }
 
-    // Query database for an existing webhook
+	// Fetch webhook pair from database if not cached
     webhook_a_id, webhook_b_id, err := db.GetWebhook(guild_id)
-
-    // Only throw up error if it's an actual error (not just row not found)
     if err != nil && err != sql.ErrNoRows {
         return nil, fmt.Errorf("Failed to retrieve webhook pair for guild '%s': %v", guild_id, err)
     }
 
-    // Create new webhook if one does not exist already
+    var pair *WebhookPair
+
     if err == sql.ErrNoRows || len(webhook_a_id) == 0 || len(webhook_b_id) == 0 {
-        _, err := createWebhook(discord, guild_id, c.Channel)
+		// If no webhook pair in database, create new one
+        pair, err = createWebhook(discord, guild_id, c.Channel)
         if err != nil {
             return nil, err
         }
-        return GetWebhook(discord, guild_id)
-    }
-
-    // Retrieve webhook objects, create a new one if it's invalid
-    var webhook_a *discordgo.Webhook
-    var webhook_b *discordgo.Webhook
-    webhook_a, err = discord.Webhook(webhook_a_id)
-    if err == nil {
-        webhook_b, err = discord.Webhook(webhook_b_id)
-    }
-    if err != nil {
-        _, err := createWebhook(discord, guild_id, c.Channel)
-        if err != nil {
-            return nil, err
+    } else {
+		// If webhook pair in databse, fetch webhook object and cache it
+        var webhook_a *discordgo.Webhook
+        var webhook_b *discordgo.Webhook
+        webhook_a, err = discord.Webhook(webhook_a_id)
+        if err == nil {
+            webhook_b, err = discord.Webhook(webhook_b_id)
         }
-        return GetWebhook(discord, guild_id)
+
+        if err != nil {
+            // If stored webhook IDs are stale/deleted, create new pair
+            pair, err = createWebhook(discord, guild_id, c.Channel)
+            if err != nil {
+                return nil, err
+            }
+        } else {
+            pair = &WebhookPair{ WebhookA: webhook_a, WebhookB: webhook_b }
+            webhooks[guild_id] = pair
+        }
     }
 
-    // Cache ond return existing webhook pair
-    webhooks[guild_id] = &WebhookPair{ WebhookA: webhook_a, WebhookB: webhook_b }
-    return GetWebhook(discord, guild_id)
+    return alternateWebhook(pair), nil
+}
+
+// alternateWebhook flips the LRU bit and returns the next webhook in the pair.
+func alternateWebhook(pair *WebhookPair) *discordgo.Webhook {
+    pair.LRU = !pair.LRU
+    if pair.LRU {
+        return pair.WebhookB
+    }
+    return pair.WebhookA
 }
 
 // createWebhook creates a webhook pair for a given guild in the given pin channel
