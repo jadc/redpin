@@ -1,9 +1,10 @@
 package events
 
 import (
-	"github.com/bwmarrin/discordgo"
 	"log"
+	"sync"
 
+	"github.com/bwmarrin/discordgo"
 	"github.com/jadc/redpin/database"
 	"github.com/jadc/redpin/misc"
 )
@@ -12,6 +13,7 @@ import (
 // Used to prevent self-pinning (if that is disabled)
 // Cached to reduce API calls
 var selfpin = make(map[string]map[string]struct{})
+var selfpinMu sync.RWMutex
 
 func onReaction(discord *discordgo.Session, event *discordgo.MessageReactionAdd) {
     reaction := event.MessageReaction
@@ -29,11 +31,12 @@ func onReaction(discord *discordgo.Session, event *discordgo.MessageReactionAdd)
 
     // Update selfpin map on reaction add
     if reaction.UserID == message.Author.ID {
+        selfpinMu.Lock()
         if selfpin[event.MessageID] == nil {
             selfpin[event.MessageID] = make(map[string]struct{})
         }
-
         selfpin[event.MessageID][event.Emoji.APIName()] = struct{}{}
+        selfpinMu.Unlock()
     }
 
     db := database.Connect()
@@ -79,27 +82,34 @@ func onReaction(discord *discordgo.Session, event *discordgo.MessageReactionAdd)
 
 // Update selfpin map on reaction remove
 func onReactionRemove(discord *discordgo.Session, event *discordgo.MessageReactionRemove) {
-    if selfpin[event.MessageID] != nil {
-        reaction := event.MessageReaction
-        message, err := discord.ChannelMessage(reaction.ChannelID, reaction.MessageID)
-        if err != nil {
-            log.Printf("Failed to fetch message '%s': %v", reaction.MessageID, err)
-            return
-        }
+    selfpinMu.RLock()
+    _, exists := selfpin[event.MessageID]
+    selfpinMu.RUnlock()
+    if !exists {
+        return
+    }
 
-        if reaction.UserID == message.Author.ID {
-            if selfpin[event.MessageID] != nil {
-                delete(selfpin[event.MessageID], event.Emoji.APIName())
-            }
+    reaction := event.MessageReaction
+    message, err := discord.ChannelMessage(reaction.ChannelID, reaction.MessageID)
+    if err != nil {
+        log.Printf("Failed to fetch message '%s': %v", reaction.MessageID, err)
+        return
+    }
+
+    if reaction.UserID == message.Author.ID {
+        selfpinMu.Lock()
+        if selfpin[event.MessageID] != nil {
+            delete(selfpin[event.MessageID], event.Emoji.APIName())
         }
+        selfpinMu.Unlock()
     }
 }
 
 // Update selfpin map on message delete
 func onMessageDelete(discord *discordgo.Session, event *discordgo.MessageDelete) {
-    if selfpin[event.Message.ID] != nil {
-        delete(selfpin, event.Message.ID)
-    }
+    selfpinMu.Lock()
+    delete(selfpin, event.Message.ID)
+    selfpinMu.Unlock()
 }
 
 // shouldPin checks all reactions of the messsage, and determines if the message should be pinned.
@@ -117,7 +127,10 @@ func shouldPin(c *database.Config, message *discordgo.Message) bool {
 
         // Remove reactions from the message author from the count
         if !c.Selfpin {
-            if _, ok := selfpin[message.ID][r.Emoji.APIName()]; ok {
+            selfpinMu.RLock()
+            _, isSelfpin := selfpin[message.ID][r.Emoji.APIName()]
+            selfpinMu.RUnlock()
+            if isSelfpin {
                 count--
             }
         }
