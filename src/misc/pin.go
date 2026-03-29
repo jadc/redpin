@@ -89,6 +89,8 @@ func CreatePinRequest(discord *discordgo.Session, guild_id string, message *disc
 // Execute on a PinRequest pins the message, forwarding it to the pin channel
 // Returns the used pin channel ID and pin message's ID if successful
 func (req *PinRequest) Execute(discord *discordgo.Session) (string, string, error) {
+    defer delete(pinning, req.message.ID)
+
     db, err := database.Connect()
     if err != nil {
         return "", "", fmt.Errorf("Failed to connect to database: %v", err)
@@ -167,7 +169,6 @@ func (req *PinRequest) Execute(discord *discordgo.Session) (string, string, erro
     if err != nil {
         return "", "", fmt.Errorf("Failed to add pin to database: %v", err)
     }
-    delete(pinning, req.message.ID)
 
     log.Printf("Pinned message '%s' in guild '%s'", req.message.ID, req.guildID)
     return pin_msg.ChannelID, pin_msg.ID, nil
