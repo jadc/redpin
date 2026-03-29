@@ -18,13 +18,16 @@ func onPin(discord *discordgo.Session, event *discordgo.ChannelPinsUpdate) {
         return
     }
 
-    // Abort if the pin event was removal
     if _, ok := counts[event.ChannelID]; !ok {
         counts[event.ChannelID] = len(pins)
     }
-    if len(pins) < counts[event.ChannelID] {
+
+    // Abort if the pin event was removal
+    if len(pins) <= counts[event.ChannelID] {
+        counts[event.ChannelID] = len(pins)
         return
     }
+    counts[event.ChannelID] = len(pins)
 
     // Pin the message that was just pinned
     real_pin := pins[0]
