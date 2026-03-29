@@ -1,12 +1,14 @@
 package misc
 
 import (
+	"bytes"
 	"database/sql"
 	"errors"
 	"fmt"
-    "log"
-    "net/http"
-    "strings"
+	"io"
+	"log"
+	"net/http"
+	"strings"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/jadc/redpin/database"
@@ -288,10 +290,10 @@ func splitAttachments(attachments []*discordgo.MessageAttachment, size_limit int
         }
 
         if a.Size > 0 && a.Size < size_limit {
-            // Download attachment
-            data, err := http.DefaultClient.Get(a.URL)
+            // Download attachment, falling back to proxy URL
+            body, err := downloadAttachment(a.URL)
             if err != nil {
-                data, err = http.DefaultClient.Get(a.ProxyURL)
+                body, err = downloadAttachment(a.ProxyURL)
                 if err != nil {
                     // Append link instead if downloading attachment fails
                     links = append(links, a.URL)
@@ -305,11 +307,11 @@ func splitAttachments(attachments []*discordgo.MessageAttachment, size_limit int
                 files = make([]*discordgo.File, 0, MAX_FILES)
             }
 
-            // Create file with attachment data
+            // Create file with buffered attachment data
             file := &discordgo.File{
                 Name: a.Filename,
                 ContentType: a.ContentType,
-                Reader: data.Body,
+                Reader: bytes.NewReader(body),
             }
             files = append(files, file)
             size += a.Size
@@ -324,6 +326,21 @@ func splitAttachments(attachments []*discordgo.MessageAttachment, size_limit int
     link_sets = append(link_sets, links)
 
     return file_sets, link_sets
+}
+
+// downloadAttachment fetches a URL and returns the body as a byte slice, closing the response body immediately.
+func downloadAttachment(url string) ([]byte, error) {
+    resp, err := http.DefaultClient.Get(url)
+    if err != nil {
+        return nil, err
+    }
+    defer resp.Body.Close()
+
+    if resp.StatusCode != http.StatusOK {
+        return nil, fmt.Errorf("unexpected status %d for %s", resp.StatusCode, url)
+    }
+
+    return io.ReadAll(resp.Body)
 }
 
 // sizeLimit returns the maximum size (in bytes) of a message that can be sent in a guild
