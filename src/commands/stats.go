@@ -45,10 +45,7 @@ var command_stats_leaderboard = Command{
         })
 
         // Connect to database
-        db, err := database.Connect()
-        if err != nil {
-            log.Printf("Failed to connect to database: %v", err)
-        }
+        db := database.Connect()
 
         lb, err := db.GetLeaderboard(i.GuildID)
         if err != nil {
@@ -116,10 +113,7 @@ var command_stats_user = Command{
 
         if user := i.ApplicationCommandData().Options[0].UserValue(discord); user != nil {
             // Connect to database
-            db, err := database.Connect()
-            if err != nil {
-                log.Printf("Failed to connect to database: %v", err)
-            }
+            db := database.Connect()
 
             // Build embed header
             if member, err := discord.GuildMember(i.GuildID, user.ID); err == nil {
