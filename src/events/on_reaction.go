@@ -54,8 +54,11 @@ func onReaction(discord *discordgo.Session, event *discordgo.MessageReactionAdd)
     }
 
     // Ignore reactions in NSFW channels
-    if !c.NSFW && isNSFW(discord, reaction.ChannelID) {
-        return
+    if !c.NSFW {
+        channel, err := discord.State.Channel(reaction.ChannelID)
+        if err != nil || channel.NSFW {
+            return
+        }
     }
 
     if !shouldPin(c, message) {
@@ -132,37 +135,3 @@ func shouldPin(c *database.Config, message *discordgo.Message) bool {
     return false
 }
 
-// Hashset of ids of NSFW channels
-// Cached to reduce API calls
-var is_nsfw = make(map[string]bool)
-
-// isNSFW returns whether a channel is NSFW or not, reading from cache when possible
-func isNSFW(discord *discordgo.Session, channel_id string) bool {
-    // Attempt to read from cache
-    if nsfw, ok := is_nsfw[channel_id]; ok {
-        return nsfw
-    }
-
-    // Otherwise, query from Discord
-    channel, _ := discord.Channel(channel_id)
-    is_nsfw[channel_id] = channel.NSFW
-    return is_nsfw[channel_id]
-}
-
-func onReady(discord *discordgo.Session, event *discordgo.Ready) {
-    for _, guild := range event.Guilds {
-        channels, _ := discord.GuildChannels(guild.ID)
-        for _, channel := range channels {
-            is_nsfw[channel.ID] = channel.NSFW
-        }
-    }
-    log.Printf("Cached %d channels' NSFW status", len(is_nsfw))
-}
-
-func onChannelUpdate(discord *discordgo.Session, event *discordgo.ChannelUpdate) {
-    is_nsfw[event.Channel.ID] = event.NSFW
-}
-
-func onChannelDelete(discord *discordgo.Session, event *discordgo.ChannelDelete) {
-    delete(is_nsfw, event.Channel.ID)
-}
