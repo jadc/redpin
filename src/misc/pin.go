@@ -9,6 +9,7 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"sync"
 
 	"github.com/bwmarrin/discordgo"
 	"github.com/jadc/redpin/database"
@@ -35,6 +36,27 @@ type PinRequest struct {
 // Hashset of messages currently being pinned
 // Helps prevent rapid reactions from pinning a message twice
 var pinning = make(map[string]struct{})
+var pinningMu sync.Mutex
+
+// startPinning marks a message as currently being pinned.
+// Returns false if it was already being pinned.
+func startPinning(messageID string) bool {
+    pinningMu.Lock()
+    defer pinningMu.Unlock()
+
+    if _, ok := pinning[messageID]; ok {
+        return false
+    }
+    pinning[messageID] = struct{}{}
+    return true
+}
+
+// donePinning removes a message from the currently-pinning set.
+func donePinning(messageID string) {
+    pinningMu.Lock()
+    delete(pinning, messageID)
+    pinningMu.Unlock()
+}
 
 // CreatePinRequest creates a copy of the message, and all messages it references, in its current state
 func CreatePinRequest(discord *discordgo.Session, guild_id string, message *discordgo.Message) (*PinRequest, error) {
@@ -44,10 +66,9 @@ func CreatePinRequest(discord *discordgo.Session, guild_id string, message *disc
     }
 
     // Skip messages currently being pinned
-    if _, ok := pinning[message.ID]; ok {
+    if !startPinning(message.ID) {
         return nil, ALREADY_PINNED
     }
-    pinning[message.ID] = struct{}{}
 
     // Retrieve current config
     db := database.Connect()
@@ -86,7 +107,7 @@ func CreatePinRequest(discord *discordgo.Session, guild_id string, message *disc
 // Execute on a PinRequest pins the message, forwarding it to the pin channel
 // Returns the used pin channel ID and pin message's ID if successful
 func (req *PinRequest) Execute(discord *discordgo.Session) (string, string, error) {
-    defer delete(pinning, req.message.ID)
+    defer donePinning(req.message.ID)
 
     db := database.Connect()
 
