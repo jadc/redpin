@@ -305,6 +305,7 @@ func splitAttachments(attachments []*discordgo.MessageAttachment, size_limit int
             if len(files) >= MAX_FILES || size + a.Size >= size_limit {
                 file_sets = append(file_sets, files)
                 files = make([]*discordgo.File, 0, MAX_FILES)
+                size = 0
             }
 
             // Create file with buffered attachment data
