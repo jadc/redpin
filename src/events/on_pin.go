@@ -1,15 +1,30 @@
 package events
 
 import (
-	"github.com/bwmarrin/discordgo"
 	"log"
+	"sync"
 
+	"github.com/bwmarrin/discordgo"
 	"github.com/jadc/redpin/misc"
 )
 
 // Hashmap of channel id to pin count
 // Used to prevent attempting to pin when a message is unpinned
 var counts = make(map[string]int)
+var countsMu sync.Mutex
+
+// hasPinCountIncreased updates the cached pin count for a channel 
+// and returns whether the new count is greater than the previous one.
+func hasPinCountIncreased(channelID string, count int) bool {
+    countsMu.Lock()
+    defer countsMu.Unlock()
+
+    prev, ok := counts[channelID]
+    counts[channelID] = count
+
+	// If not cached (!ok) then pin anyway, might be a pin decrease
+    return !ok || count > prev
+}
 
 func onPin(discord *discordgo.Session, event *discordgo.ChannelPinsUpdate) {
     // Get pinned messages in channel
@@ -18,16 +33,9 @@ func onPin(discord *discordgo.Session, event *discordgo.ChannelPinsUpdate) {
         return
     }
 
-    if _, ok := counts[event.ChannelID]; !ok {
-        counts[event.ChannelID] = len(pins)
-    }
-
-    // Abort if the pin event was removal
-    if len(pins) <= counts[event.ChannelID] {
-        counts[event.ChannelID] = len(pins)
+    if !hasPinCountIncreased(event.ChannelID, len(pins)) {
         return
     }
-    counts[event.ChannelID] = len(pins)
 
     // Pin the message that was just pinned
     real_pin := pins[0]
