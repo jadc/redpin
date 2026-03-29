@@ -347,8 +347,8 @@ func downloadAttachment(url string) ([]byte, error) {
 
 // sizeLimit returns the maximum size (in bytes) of a message that can be sent in a guild
 func sizeLimit(discord *discordgo.Session, guild_id string) (int, error) {
-    // Get guild object
-    guild, err := discord.Guild(guild_id)
+    // Get (cached) guild object
+    guild, err := discord.State.Guild(guild_id)
     if err != nil {
         return 0, fmt.Errorf("Failed to retrieve guild '%s': %v", guild_id, err)
     }
