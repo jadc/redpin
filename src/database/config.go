@@ -35,7 +35,7 @@ func (db *database) createConfigTable() error {
             PRIMARY KEY (guild_id)
         )
     `)
-    _, err = db.Instance.ExecContext(context.Background(), query)
+    _, err := db.Instance.ExecContext(context.Background(), query)
     if err != nil {
         return fmt.Errorf("Failed to create config table: %w", err)
     }
@@ -75,13 +75,13 @@ func (db *database) LoadConfig(guild_id string) (*Config, error) {
 
     // Retrieve config data from database, load default if not found
     var raw string
-    err = db.Instance.QueryRow("SELECT json FROM config WHERE guild_id = ?", guild_id).Scan(&raw)
+    err := db.Instance.QueryRow("SELECT json FROM config WHERE guild_id = ?", guild_id).Scan(&raw)
     if err != nil {
         return c, fmt.Errorf("Failed to retrieve config for guild '%s': %w", guild_id, err)
     }
 
     // Load config into new object
-    err := json.Unmarshal([]byte(raw), c)
+    err = json.Unmarshal([]byte(raw), c)
     if err != nil {
         return c, fmt.Errorf("Failed to unmarshal config for guild '%s': %w", guild_id, err)
     }
@@ -94,7 +94,7 @@ func (db *database) SaveConfig(guild_id string, c *Config) error {
     log.Printf("Saving config for guild '%s'\n", guild_id)
 
     // Create guild pins table if it doesn't exist
-    err = db.createConfigTable()
+    err := db.createConfigTable()
     if err != nil {
         return fmt.Errorf("Failed to create config table: %w", err)
     }

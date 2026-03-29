@@ -17,10 +17,9 @@ type database struct {
 var db *database
 
 var once sync.Once
-var err error
 
 // Connects to database and returns a pointer to it
-func Connect() (*database, error) {
+func Connect() *database {
     // Only runs once
     once.Do(func(){
         // Retrieve file name from the environment
@@ -39,11 +38,12 @@ func Connect() (*database, error) {
         // Limit writes to one at a time (not ideal)
         instance.SetMaxOpenConns(1)
 
-        // Assign to global variable
-        err = instance.Ping()
+        if err := instance.Ping(); err != nil {
+            log.Fatal("Failed to ping database: ", err)
+        }
+
         db = &database{instance, make(map[string]*Config)}
     })
 
-    // Returns current or new sqlite3 instance (after testing with ping)
-    return db, err
+    return db
 }

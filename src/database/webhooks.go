@@ -15,7 +15,7 @@ func (db *database) createWebhookTable() error {
             PRIMARY KEY (guild_id)
         )
     `
-    _, err = db.Instance.ExecContext(context.Background(), query)
+    _, err := db.Instance.ExecContext(context.Background(), query)
     if err != nil {
         return fmt.Errorf("Failed to create webhooks table: %w", err)
     }
