@@ -24,7 +24,7 @@ func (db *database) createStatsTable(guild_id string) error {
             emoji_id TEXT NOT NULL
         )
     `, guild_id)
-    _, err = db.Instance.ExecContext(context.Background(), query, guild_id)
+    _, err := db.Instance.ExecContext(context.Background(), query, guild_id)
     if err != nil {
         return fmt.Errorf("Failed to create stats_%s table: %w", guild_id, err)
     }
@@ -34,7 +34,7 @@ func (db *database) createStatsTable(guild_id string) error {
 // AddStat inserts a statistic into the guild_id's stats table.
 func (db *database) AddStats(guild_id string, user_id string, emoji_id string) error {
     // Create table if it doesn't exist
-    err = db.createStatsTable(guild_id)
+    err := db.createStatsTable(guild_id)
     if err != nil {
         return err
     }
@@ -51,7 +51,7 @@ func (db *database) AddStats(guild_id string, user_id string, emoji_id string) e
 // GetStats returns the total number of pins, with specific emojis used, a user has received in a guild.
 func (db *database) GetStats(guild_id string, user_id string) (*UserStats, error) {
     // Create guild pins table if it doesn't exist
-    err = db.createStatsTable(guild_id)
+    err := db.createStatsTable(guild_id)
     if err != nil {
         return nil, err
     }
@@ -64,7 +64,7 @@ func (db *database) GetStats(guild_id string, user_id string) (*UserStats, error
         SELECT COUNT(*)
         FROM stats_%s
         WHERE user_id = ?`, guild_id)
-    err := db.Instance.QueryRowContext(context.Background(), query, user_id).Scan(&count)
+    err = db.Instance.QueryRowContext(context.Background(), query, user_id).Scan(&count)
     if err != nil {
         return nil, err
     }
@@ -98,7 +98,7 @@ func (db *database) GetStats(guild_id string, user_id string) (*UserStats, error
 // GetLeaderboard returns the top ten users in a guild with the most total number of pins, with specific emojis used.
 func (db *database) GetLeaderboard(guild_id string) ([]*UserStats, error) {
     // Create guild pins table if it doesn't exist
-    err = db.createStatsTable(guild_id)
+    err := db.createStatsTable(guild_id)
     if err != nil {
         return nil, err
     }

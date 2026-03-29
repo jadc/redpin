@@ -15,7 +15,7 @@ func (db *database) createPinTable(guild_id string) error {
             PRIMARY KEY (message_id, pin_channel_id, pin_id)
         )
     `, guild_id)
-    _, err = db.Instance.ExecContext(context.Background(), query, guild_id)
+    _, err := db.Instance.ExecContext(context.Background(), query, guild_id)
     if err != nil {
         return fmt.Errorf("Failed to create pins_%s table: %w", guild_id, err)
     }
@@ -25,7 +25,7 @@ func (db *database) createPinTable(guild_id string) error {
 // AddPin inserts a message_id -> pin_id pair into the guild_id table.
 func (db *database) AddPin(guild_id string, pin_channel_id string, message_id string, pin_id string) error {
     // Create guild pins table if it doesn't exist
-    err = db.createPinTable(guild_id)
+    err := db.createPinTable(guild_id)
     if err != nil {
         return err
     }
@@ -42,7 +42,7 @@ func (db *database) AddPin(guild_id string, pin_channel_id string, message_id st
 // GetPin retrieves the pin message id from the guild_id table given a guild_id and message_id.
 func (db *database) GetPin(guild_id string, message_id string) (string, string, error) {
     // Create guild pins table if it doesn't exist
-    err = db.createPinTable(guild_id)
+    err := db.createPinTable(guild_id)
     if err != nil {
         return "", "", err
     }
@@ -50,7 +50,7 @@ func (db *database) GetPin(guild_id string, message_id string) (string, string, 
     // Retrieve pin_id associated with message_id
     pin_id := ""
     pin_channel_id := ""
-    err := db.Instance.QueryRowContext(
+    err = db.Instance.QueryRowContext(
         context.Background(),
         "SELECT pin_channel_id, pin_id FROM pins_" + guild_id + " WHERE message_id = ?", message_id,
     ).Scan(&pin_channel_id, &pin_id)

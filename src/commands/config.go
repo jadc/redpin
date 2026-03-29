@@ -39,11 +39,7 @@ var command_config_main = Command{
     metadata: nil,
     handler: func(discord *discordgo.Session, option int, i *discordgo.InteractionCreate) {
         // Fetch config for this guild
-        db, err := database.Connect()
-        if err != nil {
-            log.Printf("Failed to connect to database: %v", err)
-            return
-        }
+        db := database.Connect()
         c := db.GetConfig(i.GuildID)
 
         j, err := json.MarshalIndent(c, "", "    ")
@@ -83,18 +79,14 @@ var command_config_channel = Command{
     },
     handler: func(discord *discordgo.Session, option int, i *discordgo.InteractionCreate) {
         // Fetch config for this guild
-        db, err := database.Connect()
-        if err != nil {
-            log.Printf("Failed to connect to database: %v", err)
-            return
-        }
+        db := database.Connect()
         c := db.GetConfig(i.GuildID)
 
         // Write changes to config and save it
         new_value := i.ApplicationCommandData().Options[option].ChannelValue(discord).ID
         if c.Channel != new_value {
             c.Channel = new_value
-            err = db.SaveConfig(i.GuildID, c)
+            err := db.SaveConfig(i.GuildID, c)
             if err != nil {
                 log.Printf("Failed to save config: %v", err)
                 return
@@ -124,18 +116,14 @@ var command_config_threshold = Command{
     },
     handler: func(discord *discordgo.Session, option int, i *discordgo.InteractionCreate) {
         // Fetch config for this guild
-        db, err := database.Connect()
-        if err != nil {
-            log.Printf("Failed to connect to database: %v", err)
-            return
-        }
+        db := database.Connect()
         c := db.GetConfig(i.GuildID)
 
         // Write changes to config and save it
         new_value := int(i.ApplicationCommandData().Options[option].IntValue())
         if c.Threshold != new_value {
             c.Threshold = new_value
-            err = db.SaveConfig(i.GuildID, c)
+            err := db.SaveConfig(i.GuildID, c)
             if err != nil {
                 log.Printf("Failed to save config: %v", err)
                 return
@@ -163,18 +151,14 @@ var command_config_nsfw = Command{
     },
     handler: func(discord *discordgo.Session, option int, i *discordgo.InteractionCreate) {
         // Fetch config for this guild
-        db, err := database.Connect()
-        if err != nil {
-            log.Printf("Failed to connect to database: %v", err)
-            return
-        }
+        db := database.Connect()
         c := db.GetConfig(i.GuildID)
 
         // Write changes to config and save it
         new_value := i.ApplicationCommandData().Options[option].BoolValue()
         if c.NSFW != new_value {
             c.NSFW = new_value
-            err = db.SaveConfig(i.GuildID, c)
+            err := db.SaveConfig(i.GuildID, c)
             if err != nil {
                 log.Printf("Failed to save config: %v", err)
                 return
@@ -208,18 +192,14 @@ var command_config_selfpin = Command{
     },
     handler: func(discord *discordgo.Session, option int, i *discordgo.InteractionCreate) {
         // Fetch config for this guild
-        db, err := database.Connect()
-        if err != nil {
-            log.Printf("Failed to connect to database: %v", err)
-            return
-        }
+        db := database.Connect()
         c := db.GetConfig(i.GuildID)
 
         // Write changes to config and save it
         new_value := i.ApplicationCommandData().Options[option].BoolValue()
         if c.Selfpin != new_value {
             c.Selfpin = new_value
-            err = db.SaveConfig(i.GuildID, c)
+            err := db.SaveConfig(i.GuildID, c)
             if err != nil {
                 log.Printf("Failed to save config: %v", err)
                 return
@@ -256,18 +236,14 @@ var command_config_replydepth = Command{
     },
     handler: func(discord *discordgo.Session, option int, i *discordgo.InteractionCreate) {
         // Fetch config for this guild
-        db, err := database.Connect()
-        if err != nil {
-            log.Printf("Failed to connect to database: %v", err)
-            return
-        }
+        db := database.Connect()
         c := db.GetConfig(i.GuildID)
 
         // Write changes to config and save it
         new_value := int(i.ApplicationCommandData().Options[option].IntValue())
         if c.ReplyDepth != new_value {
             c.ReplyDepth = new_value
-            err = db.SaveConfig(i.GuildID, c)
+            err := db.SaveConfig(i.GuildID, c)
             if err != nil {
                 log.Printf("Failed to save config: %v", err)
                 return
@@ -295,11 +271,7 @@ var command_config_emoji = Command{
     },
     handler: func(discord *discordgo.Session, option int, i *discordgo.InteractionCreate) {
         // Fetch config for this guild
-        db, err := database.Connect()
-        if err != nil {
-            log.Printf("Failed to connect to database: %v", err)
-            return
-        }
+        db := database.Connect()
         c := db.GetConfig(i.GuildID)
 
         // Write changes to config and save it
@@ -316,7 +288,7 @@ var command_config_emoji = Command{
                 c.Allowlist[emoji] = struct{}{}
             }
 
-            err = db.SaveConfig(i.GuildID, c)
+            err := db.SaveConfig(i.GuildID, c)
             if err != nil {
                 log.Printf("Failed to save config: %v", err)
                 return

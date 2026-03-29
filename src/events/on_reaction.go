@@ -36,11 +36,7 @@ func onReaction(discord *discordgo.Session, event *discordgo.MessageReactionAdd)
         selfpin[event.MessageID][event.Emoji.ID] = struct{}{}
     }
 
-    db, err := database.Connect()
-    if err != nil {
-        log.Printf("Failed to connect to database: %v", err)
-        return
-    }
+    db := database.Connect()
     c := db.GetConfig(event.GuildID)
 
     // Ignore reactions in pin channel

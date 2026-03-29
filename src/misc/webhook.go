@@ -28,10 +28,7 @@ var webhooks = make(map[string]*WebhookPair)
 
 // GetWebhook returns the appropriate webhook ID for a given guild
 func GetWebhook(discord *discordgo.Session, guild_id string) (*discordgo.Webhook, error) {
-    db, err := database.Connect()
-    if err != nil {
-        return nil, fmt.Errorf("Failed to connect to database: %v", err)
-    }
+    db := database.Connect()
     c := db.GetConfig(guild_id)
 
     // Attempt to read from cache
@@ -41,6 +38,7 @@ func GetWebhook(discord *discordgo.Session, guild_id string) (*discordgo.Webhook
             discord.WebhookDelete(pair.WebhookA.ID)
             discord.WebhookDelete(pair.WebhookB.ID)
 
+            var err error
             pair, err = createWebhook(discord, guild_id, c.Channel)
             if err != nil {
                 return nil, err
@@ -95,10 +93,7 @@ func GetWebhook(discord *discordgo.Session, guild_id string) (*discordgo.Webhook
 
 // createWebhook creates a webhook pair for a given guild in the given pin channel
 func createWebhook(discord *discordgo.Session, guild_id string, channel_id string) (*WebhookPair, error) {
-    db, err := database.Connect()
-    if err != nil {
-        return nil, fmt.Errorf("Failed to connect to database: %v", err)
-    }
+    db := database.Connect()
 
     // Create webhook A in given channel
     webhookA, err := discord.WebhookCreate(channel_id, "redpin A", "")

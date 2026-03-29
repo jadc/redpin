@@ -50,10 +50,7 @@ func CreatePinRequest(discord *discordgo.Session, guild_id string, message *disc
     pinning[message.ID] = struct{}{}
 
     // Retrieve current config
-    db, err := database.Connect()
-    if err != nil {
-        return nil, fmt.Errorf("Failed to connect to database: %v", err)
-    }
+    db := database.Connect()
     c := db.GetConfig(guild_id)
 
     // Create pin request
@@ -91,10 +88,7 @@ func CreatePinRequest(discord *discordgo.Session, guild_id string, message *disc
 func (req *PinRequest) Execute(discord *discordgo.Session) (string, string, error) {
     defer delete(pinning, req.message.ID)
 
-    db, err := database.Connect()
-    if err != nil {
-        return "", "", fmt.Errorf("Failed to connect to database: %v", err)
-    }
+    db := database.Connect()
 
     // Query database for if message is already pinned
     pin_channel_id, pin_msg_id, err := db.GetPin(req.guildID, req.message.ID)
