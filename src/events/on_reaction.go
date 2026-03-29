@@ -8,7 +8,7 @@ import (
 	"github.com/jadc/redpin/misc"
 )
 
-// Map of message id to reaction emoji id
+// Map of message id to reaction emoji API name
 // Used to prevent self-pinning (if that is disabled)
 // Cached to reduce API calls
 var selfpin = make(map[string]map[string]struct{})
@@ -33,7 +33,7 @@ func onReaction(discord *discordgo.Session, event *discordgo.MessageReactionAdd)
             selfpin[event.MessageID] = make(map[string]struct{})
         }
 
-        selfpin[event.MessageID][event.Emoji.ID] = struct{}{}
+        selfpin[event.MessageID][event.Emoji.APIName()] = struct{}{}
     }
 
     db := database.Connect()
@@ -89,7 +89,7 @@ func onReactionRemove(discord *discordgo.Session, event *discordgo.MessageReacti
 
         if reaction.UserID == message.Author.ID {
             if selfpin[event.MessageID] != nil {
-                delete(selfpin[event.MessageID], event.Emoji.ID)
+                delete(selfpin[event.MessageID], event.Emoji.APIName())
             }
         }
     }
@@ -117,7 +117,7 @@ func shouldPin(c *database.Config, message *discordgo.Message) bool {
 
         // Remove reactions from the message author from the count
         if !c.Selfpin {
-            if _, ok := selfpin[message.ID][r.Emoji.ID]; ok {
+            if _, ok := selfpin[message.ID][r.Emoji.APIName()]; ok {
                 count--
             }
         }
