@@ -48,6 +48,11 @@ func onReaction(discord *discordgo.Session, event *discordgo.MessageReactionAdd)
         return
     }
 
+    // Skip messages that are already pinned
+    if _, _, err := db.GetPin(event.GuildID, message.ID); err == nil {
+        return
+    }
+
     // Ignore reactions in NSFW channels
     if !c.NSFW && isNSFW(discord, reaction.ChannelID) {
         return
